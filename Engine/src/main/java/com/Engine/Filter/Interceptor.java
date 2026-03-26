@@ -22,7 +22,7 @@ public class Interceptor implements GlobalFilter {
                 original.getURI().getPath(),
                 original.getRemoteAddress());
         ServerHttpRequest mutated = original.mutate()
-                .header("X-Correlation-Id")
+                .header("X-Correlation-Id",correlationId)
                 .build();
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(mutated)

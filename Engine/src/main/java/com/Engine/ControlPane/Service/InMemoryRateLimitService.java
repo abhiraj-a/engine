@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class InMemoryRateLimitService {
 
-    private Map<String,TokenBucket> bucketCache = new ConcurrentHashMap<>();
+    private Map<String, TokenBucket> bucketCache = new ConcurrentHashMap<>();
     private final ApiClientRepository apiClientRepository;
 
     public Mono<?> isAllowed(String clientId) {

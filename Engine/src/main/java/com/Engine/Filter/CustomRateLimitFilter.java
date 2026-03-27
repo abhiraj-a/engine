@@ -5,6 +5,7 @@ import com.Engine.Repository.ApiClientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ServerWebExchange;
@@ -17,12 +18,13 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
     private final InMemoryRateLimitService rateLimitService;
 
     @Override
+    @Bean
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String clientId = exchange.getRequest().getHeaders().getFirst("X-Client-Id");
         return rateLimitService.isAllowed(clientId)
                 .flatMap(allowed->{
                     if((boolean) allowed){
-                        chain.filter(exchange);
+                      return chain.filter(exchange);
                     }
                     exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
                     return exchange.getResponse().setComplete();

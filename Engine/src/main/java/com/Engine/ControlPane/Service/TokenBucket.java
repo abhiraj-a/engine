@@ -22,7 +22,7 @@ public class TokenBucket {
     }
 
     public synchronized boolean tryConsume(){
-
+        refill();
         if(tokens>=1.0){
             tokens-=1.0;
             return true;
@@ -36,4 +36,7 @@ public class TokenBucket {
         tokens =Math.min(capacity, tokens+(refillRate*elapsedTime));
         lastRefillTimestamp =now;
     }
+
+
+
 }

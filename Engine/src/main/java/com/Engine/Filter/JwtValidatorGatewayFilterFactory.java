@@ -17,17 +17,17 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.text.ParseException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
 public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtValidatorGatewayFilterFactory.Config> {
 
+    private Map<String,JWKSource<SecurityContext>> jwkSourceMapCache =new ConcurrentHashMap<>();
     public JwtValidatorGatewayFilterFactory() {
         super(Config.class);
     }
@@ -49,6 +49,9 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
     @Override
     public GatewayFilter apply(Config config) {
+
+        JWKSource<SecurityContext> cachedKeySource = getOrCreateKeySource(config.getJwksUrl());
+
         return (exchange, chain) -> {
             String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
@@ -62,13 +65,8 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
             try {
                 SignedJWT signedJWT = SignedJWT.parse(token);
 
-                // 2. Validate cryptographically against the Developer's strict Config
-                validateToken(signedJWT, config);
-
-                // 3. Extract identity EXPLICITLY based on the Developer's chosen claim
+                validateToken(signedJWT, config,cachedKeySource);
                 String clientId = extractClientId(signedJWT.getJWTClaimsSet(), config);
-
-                // 4. Inject secure header for the Rate Limiter and downstream microservices
                 exchange.getRequest().mutate()
                         .header("X-Engine-Verified-Client", clientId)
                         .build();
@@ -77,22 +75,36 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
             } catch (Exception e) {
                 log.warn("JWT Validation failed for path [{}]: {}", exchange.getRequest().getPath(), e.getMessage());
-                // Note: We currently just return a blank 401. We will fix this with the Exception Handler.
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
         };
     }
 
-    private void validateToken(SignedJWT signedJWT, Config config) throws Exception {
+    private JWKSource<SecurityContext> getOrCreateKeySource(String jwksUrl)  {
+
+      if(jwkSourceMapCache.containsKey(jwksUrl)){
+          return jwkSourceMapCache.get(jwksUrl);
+      }
+        JWKSource<SecurityContext> jwkSource = null;
+        try {
+            jwkSource = JWKSourceBuilder
+                    .create(URI.create(jwksUrl).toURL())
+                    .retrying(true)
+                    .build();
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+        jwkSourceMapCache.put(jwksUrl,jwkSource);
+      return jwkSource;
+    }
+
+    private void validateToken(SignedJWT signedJWT, Config config,JWKSource<SecurityContext> keySource) throws Exception {
         JWSAlgorithm expectedAlg = JWSAlgorithm.parse(config.getAlgorithm());
         if (!signedJWT.getHeader().getAlgorithm().equals(expectedAlg)) {
             throw new SecurityException("Algorithm mismatch. Expected: " + expectedAlg.getName());
         }
-        JWKSource<SecurityContext> keySource = JWKSourceBuilder
-                .create(URI.create(config.getJwksUrl()).toURL())
-                .retrying(true)
-                .build();
+
         var jwtProcessor = new DefaultJWTProcessor<SecurityContext>();
         jwtProcessor.setJWSKeySelector(new JWSVerificationKeySelector<>(expectedAlg, keySource));
         JWTClaimsSet.Builder exactMatchClaims = new JWTClaimsSet.Builder();
@@ -121,17 +133,13 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
     private String extractClientId(JWTClaimsSet claims, Config config) throws ParseException {
         String expectedClaimName = config.getClaimForClientId();
-
         if (expectedClaimName == null || expectedClaimName.isBlank()) {
             throw new IllegalArgumentException("Engine Configuration Error: 'claimForClientId' is missing for this route.");
         }
-
         String clientId = claims.getStringClaim(expectedClaimName);
-
         if (clientId == null || clientId.isBlank()) {
             throw new SecurityException("Token rejected: Missing the explicitly required claim '" + expectedClaimName + "'.");
         }
-
         return clientId;
     }
 }

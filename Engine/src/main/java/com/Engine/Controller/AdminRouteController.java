@@ -1,4 +1,4 @@
-package com.Engine.ControlPane.Controller;
+package com.Engine.Controller;
 
 import com.Engine.Entity.GatewayRoute;
 import com.Engine.Repository.GatewayRouteRepository;

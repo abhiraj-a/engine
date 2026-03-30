@@ -1,10 +1,11 @@
-package com.Engine.ControlPane.Service;
+package com.Engine.Service;
 
 import com.Engine.Repository.ApiClientRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
 @Slf4j
+@Service
 public class InMemoryRateLimitService {
 
     private Map<String, TokenBucket> bucketCache = new ConcurrentHashMap<>();

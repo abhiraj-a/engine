@@ -1,14 +1,12 @@
-package com.Engine.ControlPane.Service;
-
+package com.Engine.Service;
 import lombok.Builder;
 import lombok.Data;
-
 import java.time.Instant;
 
 @Builder
 @Data
 public class TokenBucket {
-    
+
     private final long capacity;
     private final long refillRate;
     private double tokens;
@@ -18,7 +16,7 @@ public class TokenBucket {
         this.capacity = capacity;
         this.refillRate = refillRate;
         this.lastRefillTimestamp = Instant.now();
-        this.tokens = tokens;
+        this.tokens = capacity;
     }
 
     public synchronized boolean tryConsume(){

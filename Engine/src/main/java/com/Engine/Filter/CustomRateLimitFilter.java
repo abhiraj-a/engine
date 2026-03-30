@@ -1,6 +1,6 @@
 package com.Engine.Filter;
 
-import com.Engine.ControlPane.Service.InMemoryRateLimitService;
+import com.Engine.Service.InMemoryRateLimitService;
 import com.Engine.Repository.ApiClientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -18,7 +18,6 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
     private final InMemoryRateLimitService rateLimitService;
 
     @Override
-    @Bean
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String clientId = exchange.getRequest().getHeaders().getFirst("X-Client-Id");
         return rateLimitService.isAllowed(clientId)

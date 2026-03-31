@@ -16,6 +16,8 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -62,41 +64,75 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
             String token = authHeader.substring(7);
 
-            try {
+//            try {
+//                SignedJWT signedJWT = SignedJWT.parse(token);
+//
+//                validateToken(signedJWT, config,cachedKeySource);
+//                String clientId = extractClientId(signedJWT.getJWTClaimsSet(), config);
+//                exchange.getRequest().mutate()
+//                        .header("X-Engine-Verified-Client", clientId)
+//                        .build();
+//
+//                return chain.filter(exchange);
+//
+//            } catch (Exception e) {
+//                log.warn("JWT Validation failed for path [{}]: {}", exchange.getRequest().getPath(), e.getMessage());
+//                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+//                return exchange.getResponse().setComplete();
+//            }
+            return Mono.fromCallable(()->{
+                JWKSource<SecurityContext> keySource = getOrCreateKeySource(config.jwksUrl);
                 SignedJWT signedJWT = SignedJWT.parse(token);
-
-                validateToken(signedJWT, config,cachedKeySource);
-                String clientId = extractClientId(signedJWT.getJWTClaimsSet(), config);
-                exchange.getRequest().mutate()
-                        .header("X-Engine-Verified-Client", clientId)
-                        .build();
-
-                return chain.filter(exchange);
-
-            } catch (Exception e) {
-                log.warn("JWT Validation failed for path [{}]: {}", exchange.getRequest().getPath(), e.getMessage());
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
-            }
+                validateToken(signedJWT,config,keySource);
+                JWTClaimsSet jwtClaimsSet = signedJWT.getJWTClaimsSet();
+                String clientId = extractClientId(jwtClaimsSet,config);
+                return extractClientId(jwtClaimsSet,config);
+            }).subscribeOn(Schedulers.boundedElastic())
+                    .flatMap(clientId->{
+                        exchange.getRequest().mutate()
+                                .header("X-Engine-Verified-Client", clientId)
+                                .build();
+                        return chain.filter(exchange);
+                    })
+                    .onErrorResume(throwable -> {
+                        log.warn("JWT Validation failed for path [{}]: {}", exchange.getRequest().getPath(), throwable.getMessage());
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    });
         };
     }
 
     private JWKSource<SecurityContext> getOrCreateKeySource(String jwksUrl)  {
 
-      if(jwkSourceMapCache.containsKey(jwksUrl)){
-          return jwkSourceMapCache.get(jwksUrl);
-      }
-        JWKSource<SecurityContext> jwkSource = null;
-        try {
-            jwkSource = JWKSourceBuilder
-                    .create(URI.create(jwksUrl).toURL())
-                    .retrying(true)
-                    .build();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-        jwkSourceMapCache.put(jwksUrl,jwkSource);
-      return jwkSource;
+//      if(jwkSourceMapCache.containsKey(jwksUrl)){
+//          return jwkSourceMapCache.get(jwksUrl);
+//      }
+      jwkSourceMapCache.computeIfAbsent(jwksUrl , value->{
+          JWKSource<SecurityContext> jwkSource = null;
+          try {
+              jwkSource = JWKSourceBuilder
+                      .create(URI.create(jwksUrl).toURL())
+                      .retrying(true)
+                      .cache(15 * 60 * 1000, 5 * 60 * 1000)
+                      .rateLimited(10 * 1000)
+                      .build();
+          } catch (MalformedURLException e) {
+              throw new RuntimeException(e);
+          }
+          jwkSourceMapCache.put(jwksUrl,jwkSource);
+          return jwkSource;
+      });
+//        JWKSource<SecurityContext> jwkSource = null;
+//        try {
+//            jwkSource = JWKSourceBuilder
+//                    .create(URI.create(jwksUrl).toURL())
+//                    .retrying(true)
+//                    .build();
+//        } catch (MalformedURLException e) {
+//            throw new RuntimeException(e);
+//        }
+//        jwkSourceMapCache.put(jwksUrl,jwkSource);
+      return jwkSourceMapCache.get(jwksUrl);
     }
 
     private void validateToken(SignedJWT signedJWT, Config config,JWKSource<SecurityContext> keySource) throws Exception {

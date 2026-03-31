@@ -10,8 +10,8 @@ import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.util.List;
 

@@ -18,6 +18,7 @@ public class TokenBucket {
     public TokenBucket(long capacity, long refillRate) {
         this.capacity = capacity;
         this.refillRate = refillRate;
+        this.state  =new AtomicReference<>(new BucketState(capacity,Instant.now()));
     }
 
 
@@ -49,6 +50,13 @@ public class TokenBucket {
         return new BucketState(tokens,now);
     }
 
+    public double getTokens(){
+        return state.get().tokens();
+    }
+
+    public  Instant getLastRefillTime(){
+        return state.get().lastRefillTime();
+    }
 
 
 }

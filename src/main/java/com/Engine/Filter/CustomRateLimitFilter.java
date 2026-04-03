@@ -5,7 +5,6 @@ import com.Engine.Repository.ApiClientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ServerWebExchange;

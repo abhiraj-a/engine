@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -50,7 +49,7 @@ public class InMemoryRateLimitService {
             apiClientRepository.findByClientId(clientId)
                     .flatMap(client -> {
                         client.setCurrentTokens(bucket.getTokens());
-                        client.setLastRefillTime(bucket.getLastRefillTimestamp());
+                        client.setLastRefillTime(bucket.getLastRefillTime());
                         return apiClientRepository.save(client);
                     }).subscribe();
         });

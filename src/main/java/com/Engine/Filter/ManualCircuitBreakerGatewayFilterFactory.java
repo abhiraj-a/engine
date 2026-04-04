@@ -3,10 +3,12 @@ package com.Engine.Filter;
 import com.Engine.Service.ManualCircuitBreaker;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.gateway.event.RefreshRoutesEvent;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
+import org.springframework.context.ApplicationListener;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -19,8 +21,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
-public class ManualCircuitBreakerGatewayFilterFactory extends AbstractGatewayFilterFactory<ManualCircuitBreakerGatewayFilterFactory.Config>{
+public class ManualCircuitBreakerGatewayFilterFactory extends AbstractGatewayFilterFactory<ManualCircuitBreakerGatewayFilterFactory.Config>
+implements ApplicationListener<RefreshRoutesEvent>
+{
+
     private final Map<String, ManualCircuitBreaker> circuitBreakers = new ConcurrentHashMap<>();
+
+    @Override
+    public void onApplicationEvent(RefreshRoutesEvent event) {
+        log.info("Route update detected. Clearing Circuit Breaker memory cache.");
+        circuitBreakers.clear();
+    }
+
     @Data
     public static class Config{
         private int failureThreshold = 5;

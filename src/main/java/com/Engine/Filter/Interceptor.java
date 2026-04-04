@@ -3,16 +3,17 @@ package com.Engine.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 @Slf4j
-public class Interceptor implements GlobalFilter {
+public class Interceptor implements GlobalFilter, Ordered {
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-
         long startTime = System.currentTimeMillis();
         String correlationId = UUID.randomUUID().toString();
         ServerHttpRequest original = exchange.getRequest();
@@ -27,7 +28,6 @@ public class Interceptor implements GlobalFilter {
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(mutated)
                 .build();
-
         return chain.filter(mutatedExchange)
                 .then(Mono.fromRunnable(()->{
                     long executeTime = System.currentTimeMillis()-startTime;
@@ -39,6 +39,10 @@ public class Interceptor implements GlobalFilter {
                             correlationId, statuscode, executeTime);
                 }));
     }
-    
 
+
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
 }

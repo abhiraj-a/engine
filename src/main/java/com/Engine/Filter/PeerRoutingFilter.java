@@ -28,6 +28,7 @@ public class PeerRoutingFilter implements GlobalFilter, Ordered {
         hashRouter.updateCluster(clusterNodeProvider.getActiveNodes());
     }
 
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (exchange.getRequest().getHeaders().containsKey("X-Engine-Peer-Routed")){
@@ -54,6 +55,7 @@ public class PeerRoutingFilter implements GlobalFilter, Ordered {
         mutated.getAttributes().put(ServerWebExchangeUtils.GATEWAY_ALREADY_ROUTED_ATTR,"true");
         return chain.filter(mutated);
     }
+
 
     @Override
     public int getOrder() {

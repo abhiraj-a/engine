@@ -1,7 +1,6 @@
 package com.Engine.Service;
 
 import lombok.extern.slf4j.Slf4j;
-
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -11,7 +10,7 @@ public class ManualCircuitBreaker {
 
     public enum State{OPEN,CLOSED,HALF_OPEN};
 
-    private final AtomicReference<State> state =new AtomicReference<>();
+    private final AtomicReference<State> state =new AtomicReference<>(State.CLOSED);
     private final AtomicInteger failurecount =new AtomicInteger(0);
     private volatile Instant lastFailureTime;
     private final int failureThreshold;
@@ -26,16 +25,17 @@ public class ManualCircuitBreaker {
         if(state.get()==State.CLOSED){
             return true;
         }
-
         if(state.get()==State.OPEN){
             if(Instant.now().isAfter(lastFailureTime.plusSeconds(recoveryTimeoutSeconds))){
                 log.warn("Entering half open state");
-                state.set(State.HALF_OPEN);
-                return true;
+                if(state.compareAndSet(State.OPEN,State.HALF_OPEN)) {
+                    log.warn("Circuit Breaker entering HALF_OPEN state. Allowing a single probe request.");
+                    return true;
+                }
             }
             return false;
         }
-        return state.get() == State.HALF_OPEN;
+        return false;
     }
 
     public void recordSuccess(){

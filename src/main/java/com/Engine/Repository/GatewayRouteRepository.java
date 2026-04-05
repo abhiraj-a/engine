@@ -1,6 +1,7 @@
 package com.Engine.Repository;
 
 import com.Engine.Entity.GatewayRoute;
+import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
@@ -20,6 +21,7 @@ public interface GatewayRouteRepository extends ReactiveCrudRepository<GatewayRo
     @Query("SELECT * FROM gateway_routes WHERE uri = :uri LIMIT 1")
     Mono<GatewayRoute> findByUri(String uri);
 
-    @Query("DELETE FROM gateway_routes WHERE routeId = :routeId")
+    @Modifying
+    @Query("DELETE FROM gateway_routes WHERE route_Id = :routeId")
     Mono<Object> deleteByRouteId(@Param("routeId") String routeId);
 }

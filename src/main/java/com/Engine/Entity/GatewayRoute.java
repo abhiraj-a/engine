@@ -1,5 +1,6 @@
 package com.Engine.Entity;
 
+import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
@@ -18,5 +19,5 @@ public class GatewayRoute {
     private String predicatesJson;
     private String filtersJson;
     private int routeOrder;
-    private boolean isActive;
+    private boolean isActive=true;
 }

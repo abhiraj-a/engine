@@ -21,6 +21,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain  securityFilterChain(ServerHttpSecurity httpSecurity) throws Exception {
+
         return  httpSecurity
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(Customizer.withDefaults())

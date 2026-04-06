@@ -14,7 +14,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
 import java.net.URI;
 import java.util.List;
 
@@ -30,6 +29,7 @@ public class DatabaseRouteLocator implements RouteDefinitionLocator {
                 .flatMap(r-> Mono.fromCallable(()->convertToRouteDefinition(r)))
                 .subscribeOn(Schedulers.boundedElastic());
     }
+
 
     private RouteDefinition convertToRouteDefinition(GatewayRoute  gatewayRoute){
         RouteDefinition definition=new RouteDefinition();

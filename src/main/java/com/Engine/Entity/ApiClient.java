@@ -3,6 +3,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.lang.Nullable;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -16,10 +17,14 @@ public class ApiClient {
     private UUID id;
     private String clientName;
     private String clientId;
+    @Nullable
     private String jwksUrl;
     private Integer rateLimitCapacity;
     private Integer rateLimitRefill;
-    private boolean isSuspended;
     private double currentTokens;
     private Instant lastRefillTime;
+    @Builder.Default
+    private boolean isSuspended=false;
+
+    private String authifyerId;
 }

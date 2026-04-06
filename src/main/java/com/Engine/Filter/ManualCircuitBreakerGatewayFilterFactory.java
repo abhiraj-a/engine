@@ -35,8 +35,9 @@ implements ApplicationListener<RefreshRoutesEvent>
 
     @Data
     public static class Config{
-        private int failureThreshold = 5;
+        private int windowSize = 100;
         private long recoveryTimeoutSeconds = 10;
+        private double failureRateThreshold = 0.5;
     }
 
     public ManualCircuitBreakerGatewayFilterFactory() {
@@ -50,7 +51,7 @@ implements ApplicationListener<RefreshRoutesEvent>
             String routeId = route==null?"unknown-route": route.getId();
 
             ManualCircuitBreaker cb = circuitBreakers.computeIfAbsent(routeId,
-                    id->new ManualCircuitBreaker(config.getFailureThreshold(),config.getRecoveryTimeoutSeconds()));
+                    id->new ManualCircuitBreaker(config.getFailureRateThreshold(),config.getRecoveryTimeoutSeconds(),config.getWindowSize()));
             if(!cb.isAllowed()){
                 exchange.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
                 exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);

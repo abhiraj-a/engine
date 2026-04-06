@@ -9,16 +9,20 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ManualCircuitBreaker {
 
     public enum State{OPEN,CLOSED,HALF_OPEN};
-
     private final AtomicReference<State> state =new AtomicReference<>(State.CLOSED);
     private final AtomicInteger failurecount =new AtomicInteger(0);
+    private final AtomicInteger currentIndex = new AtomicInteger(0);
     private volatile Instant lastFailureTime;
-    private final int failureThreshold;
+    private final double failureThreshold;
     private final long recoveryTimeoutSeconds;
+    private final int windowSize;
+    private  volatile boolean[] window ;
 
-    public ManualCircuitBreaker(int failureThreshold, long recoveryTimeoutSeconds) {
+    public ManualCircuitBreaker(double failureThreshold, long recoveryTimeoutSeconds,int windowSize) {
         this.failureThreshold = failureThreshold;
         this.recoveryTimeoutSeconds = recoveryTimeoutSeconds;
+        this.windowSize=windowSize;
+        this.window=new boolean[windowSize];
     }
 
     public boolean isAllowed(){
@@ -40,20 +44,38 @@ public class ManualCircuitBreaker {
 
     public void recordSuccess(){
         failurecount.set(0);
+        updateWindow(true);
         if(state.get()==State.HALF_OPEN){
             state.set(State.CLOSED);
+            log.info("Circuit CLOSED: Service recovered.");
         }
     }
 
     public  void recordFailure(){
         lastFailureTime=Instant.now();
+        updateWindow(false);
         if(state.get()==State.HALF_OPEN){
             state.set(State.OPEN);
             return;
         }
-        int currentFailures = failurecount.incrementAndGet();
-        if (currentFailures >= failureThreshold && state.compareAndSet(State.CLOSED, State.OPEN)) {
+        failurecount.incrementAndGet();
+        if (calculateFailurePercent() >= failureThreshold && state.compareAndSet(State.CLOSED, State.OPEN)) {
             log.error("Circuit Breaker TRIPPED! State is now OPEN.");
         }
+    }
+
+    private synchronized void updateWindow(boolean cond){
+        int index = currentIndex.getAndIncrement()%windowSize;
+        window[index] = cond;
+    }
+
+    private synchronized  double calculateFailurePercent(){
+        int cnt =0 ;
+        for (boolean b : window){
+            if(!b){
+                cnt++;
+            }
+        }
+        return (double) cnt/windowSize;
     }
 }

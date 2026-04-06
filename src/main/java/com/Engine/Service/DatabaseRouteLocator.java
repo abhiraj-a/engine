@@ -23,6 +23,7 @@ import java.util.List;
 public class DatabaseRouteLocator implements RouteDefinitionLocator {
     private final GatewayRouteRepository gatewayRouteRepository;
     private final ObjectMapper objectMapper;
+
     @Override
     public Flux<RouteDefinition> getRouteDefinitions() {
         return gatewayRouteRepository.findAllActiveRoutes()
@@ -30,12 +31,10 @@ public class DatabaseRouteLocator implements RouteDefinitionLocator {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
-
     private RouteDefinition convertToRouteDefinition(GatewayRoute  gatewayRoute){
         RouteDefinition definition=new RouteDefinition();
         definition.setId(gatewayRoute.getRouteId());
         definition.setUri(URI.create(gatewayRoute.getUri()));
-
         try {
             if(gatewayRoute.getPredicatesJson()!=null){
                 List<PredicateDefinition> predicates = objectMapper.readValue(gatewayRoute.getPredicatesJson(), new TypeReference<List<PredicateDefinition>>() {

@@ -1,7 +1,6 @@
 package com.Engine.Service;
 
 import org.springframework.stereotype.Component;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -32,7 +31,6 @@ public class HashRouter {
         long nodeHash = tail.isEmpty()? ring.firstKey() : tail.firstKey();
         return ring.get(nodeHash);
     }
-
 
     private long hash(String s){
         try {

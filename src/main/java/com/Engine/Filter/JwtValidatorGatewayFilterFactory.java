@@ -49,9 +49,7 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
     @Override
     public GatewayFilter apply(Config config) {
-
         JWKSource<SecurityContext> cachedKeySource = getOrCreateKeySource(config.getJwksUrl());
-
         return (exchange, chain) -> {
             String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 

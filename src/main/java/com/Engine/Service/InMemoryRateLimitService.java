@@ -26,7 +26,7 @@ public class InMemoryRateLimitService {
         }
         return apiClientRepository.findByClientId(clientId)
                 .map(client->{
-                    TokenBucket tokenBucket =new TokenBucket(client.getRateLimitCapacity(), client.getRateLimitRefill());
+                    TokenBucket tokenBucket =new TokenBucket(client.getRateLimitCapacity(), client.getRateLimitRefill(), client.getCurrentTokens(), client.getLastRefillTime());
                     bucketCache.put(clientId,tokenBucket);
                     return tokenBucket.tryConsume();
                 }).defaultIfEmpty(true);
@@ -36,23 +36,44 @@ public class InMemoryRateLimitService {
     public void loadBucketsFromDb(){
         apiClientRepository.findAll()
                 .doOnNext(client->{
-                    TokenBucket bucket = new TokenBucket(client.getRateLimitCapacity(),client.getRateLimitRefill());
+                    TokenBucket bucket = new TokenBucket(client.getRateLimitCapacity(),client.getRateLimitRefill(), client.getCurrentTokens(), client.getLastRefillTime());
                     bucketCache.put(client.getClientId(), bucket);
                 })
-                .subscribe(c -> log.info("Loaded rate limit state for: {}", c.getClientId()));
+                .subscribe(c -> log.info("Loaded rate limit state for: {}", c.getAuthifyerId()));
     }
 
     @PreDestroy
     public void persistBucketsToDb() {
         log.info("Shutting down: Persisting token counts to DB...");
-        bucketCache.forEach((clientId,bucket)->{
-            apiClientRepository.findByClientId(clientId)
+        bucketCache.forEach((authifyerId,bucket)->{
+            apiClientRepository.findByClientId(authifyerId)
                     .flatMap(client -> {
                         client.setCurrentTokens(bucket.getTokens());
                         client.setLastRefillTime(bucket.getLastRefillTime());
                         return apiClientRepository.save(client);
                     }).subscribe();
         });
+    }
 
+    public Mono<Double> getLiveTokens(String clientId){
+        TokenBucket bucket = bucketCache.get(clientId);
+        if(bucket!=null){
+            return Mono.just(bucket.peek());
+        }
+        return apiClientRepository.findByClientId(clientId)
+                .map(client->{
+                    TokenBucket tokenBucket = new TokenBucket(
+                            client.getRateLimitCapacity(),
+                            client.getRateLimitRefill(),
+                            client.getCurrentTokens(),
+                            client.getLastRefillTime()
+                    );
+                    bucketCache.put(clientId,tokenBucket);
+                    return tokenBucket.peek();
+                }).defaultIfEmpty(0.0);
+    }
+
+    public TokenBucket getBucket(String clientId) {
+        return bucketCache.get(clientId);
     }
 }

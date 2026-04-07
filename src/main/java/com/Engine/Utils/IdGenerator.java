@@ -13,4 +13,12 @@ public class IdGenerator {
         }
         return sb.toString();
     }
+
+    public static String generateClientId(){
+        StringBuilder sb =new StringBuilder();
+        for (int i = 0; i < 15; i++) {
+            sb.append(ALPHA.charAt(secureRandom.nextInt(ALPHA.length())));
+        }
+        return sb.toString();
+    }
 }

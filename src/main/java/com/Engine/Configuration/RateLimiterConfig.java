@@ -7,7 +7,6 @@ import reactor.core.publisher.Mono;
 
 @Configuration
 public class RateLimiterConfig {
-
     @Bean
     public KeyResolver userKeyResolver(){
         return exchange ->

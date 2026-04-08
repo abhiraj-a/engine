@@ -1,6 +1,7 @@
 package com.Engine.Service;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,11 +15,7 @@ public class TokenBucket {
     private final long refillRate;
     private AtomicReference<BucketState> state;
 
-    public TokenBucket(long capacity, long refillRate) {
-        this.capacity = capacity;
-        this.refillRate = refillRate;
-        this.state  =new AtomicReference<>(new BucketState(capacity,Instant.now()));
-    }
+
     public  TokenBucket(long capacity, long refillRate, double currentTokens,Instant lastRefillTime){
         this.capacity = capacity;
         this.refillRate = refillRate;

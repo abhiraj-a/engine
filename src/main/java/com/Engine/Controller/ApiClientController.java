@@ -68,7 +68,6 @@ public class ApiClientController {
     @GetMapping(value = "/tokens/stream/{clientId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<Double> getLiveTokens(@AuthenticationPrincipal Principal principal,
                                       @PathVariable String clientId){
-
         return apiClientRepository.findByClientId(clientId)
                 .filter(a->a.getAuthifyerId().equals(principal.getSub()))
 //              .switchIfEmpty(Mono.error(new SecurityException("Unauthorized access to client metrics")))
@@ -78,10 +77,23 @@ public class ApiClientController {
 
     @GetMapping("/metrics/stream/{clientId}")
     public Flux<?> getMetrics(@AuthenticationPrincipal Principal principal , @PathVariable String clientId){
+//        return apiClientRepository.findByClientId(clientId)
+//                .filter(a->a.getAuthifyerId().equals(principal.getSub()))
+//                .flatMapMany(c->Flux.interval(Duration.ofSeconds(1)))
+//                .map(c->{
+//                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+//                    return getLiveTokens(clientId)
+//                            .map(tokens -> MetricDTO.builder()
+//                                    .liveTokens(tokens)
+//                                    .totalRequests(metrics.getTotRequest())
+//                                    .passedRequests(metrics.getPassedRequest())
+//                                    .blockedRequests(metrics.getBlockedRequest())
+//                                    .build());
+//                });
         return apiClientRepository.findByClientId(clientId)
-                .filter(a->a.getAuthifyerId().equals(principal.getSub()))
-                .flatMapMany(c->Flux.interval(Duration.ofSeconds(1)))
-                .map(c->{
+                .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
+                .flatMapMany(c -> Flux.interval(Duration.ofSeconds(1)))
+                .flatMap(tick -> {
                     ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
                     return getLiveTokens(clientId)
                             .map(tokens -> MetricDTO.builder()
@@ -96,7 +108,8 @@ public class ApiClientController {
     private Mono<Double> getLiveTokens(String clientId) {
         return rateLimitService.isAllowed(clientId)
                 .then(Mono.fromCallable(() -> {
-                    return rateLimitService.getBucket(clientId).peek();
+                    var bucket = rateLimitService.getBucket(clientId);
+                    return bucket!=null?bucket.peek():0.0;
                 }))
                 .defaultIfEmpty(0.0);
     }

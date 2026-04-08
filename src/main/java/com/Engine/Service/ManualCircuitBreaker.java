@@ -1,11 +1,14 @@
 package com.Engine.Service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
+
 public class ManualCircuitBreaker {
 
     public enum State{OPEN,CLOSED,HALF_OPEN};
@@ -14,7 +17,7 @@ public class ManualCircuitBreaker {
     private final AtomicInteger currentIndex = new AtomicInteger(0);
     private volatile Instant lastFailureTime;
     private final double failureThreshold;
-    private final long recoveryTimeoutSeconds;
+    private  long recoveryTimeoutSeconds;
     private final int windowSize;
     private  volatile boolean[] window ;
 

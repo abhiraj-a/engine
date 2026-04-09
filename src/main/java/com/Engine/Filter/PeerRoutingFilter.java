@@ -1,7 +1,6 @@
 package com.Engine.Filter;
 import com.Engine.Service.ClusterNodeProvider;
 import com.Engine.Service.HashRouter;
-import jakarta.annotation.PostConstruct;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
@@ -21,11 +20,11 @@ public class PeerRoutingFilter implements GlobalFilter, Ordered {
         this.clusterNodeProvider = clusterNodeProvider;
         this.hashRouter = hashRouter;
     }
-
-    @PostConstruct
-    public void init(){
-        hashRouter.updateCluster(clusterNodeProvider.getActiveNodes());
-    }
+//
+//    @PostConstruct
+//    public void init(){
+//        hashRouter.updateCluster(clusterNodeRepository.findActiveNodes().map(p->p.));
+//    }
 
 
     @Override
@@ -33,7 +32,7 @@ public class PeerRoutingFilter implements GlobalFilter, Ordered {
         if (exchange.getRequest().getHeaders().containsKey("X-Engine-Peer-Routed")){
             return chain.filter(exchange);
         }
-        String clientId = exchange.getRequest().getHeaders().getFirst("X-Client-Id");
+        String clientId = exchange.getRequest().getHeaders().getFirst("X-Client-Verified-Id");
         if(clientId==null||clientId.isBlank()){
             return chain.filter(exchange);
         }

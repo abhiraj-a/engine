@@ -23,6 +23,7 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
         if(exchange.getAttributes().containsKey(ServerWebExchangeUtils.GATEWAY_ALREADY_ROUTED_ATTR)){
             chain.filter(exchange);
         }
+        
         String clientId = exchange.getRequest().getHeaders().getFirst("X-Engine-Verified-Client");
         return rateLimitService.isAllowed(clientId)
                 .flatMap(allowed->{
@@ -30,16 +31,16 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
                         ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
                         if ((boolean) allowed) {
                             metrics.recordSuccess();
+                            return chain.filter(exchange);
                         }
                         else {
                             metrics.recordFailure();
+                            exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+                            return exchange.getResponse().setComplete();
                         }
+
                     }
-                    if ((boolean) allowed) {
-                        return chain.filter(exchange);
-                    }
-                    exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-                    return exchange.getResponse().setComplete();
+                    return chain.filter(exchange);
                 });
     }
 

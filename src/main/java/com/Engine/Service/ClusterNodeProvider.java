@@ -3,6 +3,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,6 +21,7 @@ public class ClusterNodeProvider {
 
     private String thisServerInstance;
     private final HashRouter hashRouter;
+    @Autowired
     private  DatabaseClient client;
     @Value("${RENDER_INSTANCE_ID:12345}") private String instanceId;
     @Value("${PORT:8080}") private String port;

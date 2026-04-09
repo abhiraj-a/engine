@@ -9,6 +9,7 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.context.ApplicationListener;
+import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @Slf4j
 public class ManualCircuitBreakerGatewayFilterFactory extends AbstractGatewayFilterFactory<ManualCircuitBreakerGatewayFilterFactory.Config>
-implements ApplicationListener<RefreshRoutesEvent>
+implements ApplicationListener<RefreshRoutesEvent> , Ordered
 {
 
     private final Map<String, ManualCircuitBreaker> circuitBreakers = new ConcurrentHashMap<>();
@@ -31,6 +32,11 @@ implements ApplicationListener<RefreshRoutesEvent>
     public void onApplicationEvent(RefreshRoutesEvent event) {
         log.info("Route update detected. Clearing Circuit Breaker memory cache.");
         circuitBreakers.clear();
+    }
+
+    @Override
+    public int getOrder() {
+        return -2;
     }
 
     @Data

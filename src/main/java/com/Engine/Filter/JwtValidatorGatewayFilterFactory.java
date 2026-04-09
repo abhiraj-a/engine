@@ -12,6 +12,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -25,11 +26,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
-public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtValidatorGatewayFilterFactory.Config> {
+public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtValidatorGatewayFilterFactory.Config> implements Ordered {
 
     private Map<String,JWKSource<SecurityContext>> jwkSourceMapCache =new ConcurrentHashMap<>();
     public JwtValidatorGatewayFilterFactory() {
         super(Config.class);
+    }
+
+    @Override
+    public int getOrder() {
+        return -5;
     }
 
     // Maps directly to the JSON provided by the developer in the webapp

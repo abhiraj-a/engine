@@ -28,8 +28,6 @@ import java.util.Collections;
 @Component
 public class AuthifyerFilter implements WebFilter {
 
-
-
 private final AuthifyerKeyProvider provider;
 @Value(("${frontend.url}"))
 private String frontendUrl;
@@ -54,25 +52,23 @@ private String frontendUrl;
             String[] chunks = token.split("\\.");
             ObjectMapper mapper = new ObjectMapper();
             String header = new String(Base64.getUrlDecoder().decode(chunks[0].getBytes(StandardCharsets.UTF_8)));
-            JsonNode  node = mapper.readTree(header);
+            JsonNode node = mapper.readTree(header);
             RSAPublicKey publicKey = null;
             publicKey = (RSAPublicKey) provider.getPublicKey(node.get("kid").asText());
             Algorithm algorithm = Algorithm.RSA256(publicKey, null);
-            JWTVerifier  verifier = JWT.require(Algorithm.RSA256((RSAKeyProvider) provider.getPublicKey(node.get("kid").asText())))
-                        .withIssuer("https://authifyer-backend.onrender.com")
-                        .build();
+            JWTVerifier verifier = JWT.require(Algorithm.RSA256((RSAKeyProvider) provider.getPublicKey(node.get("kid").asText())))
+                    .withIssuer("https://authifyer-backend.onrender.com")
+                    .build();
             DecodedJWT decodedJWT = verifier.verify(token);
             String sub = String.valueOf(decodedJWT.getClaim("sub"));
             String email = String.valueOf(decodedJWT.getClaim("email"));
             Principal principal = new Principal(sub, email);
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
-            ReactiveSecurityContextHolder.withAuthentication(authenticationToken);
+            return chain.filter(exchange).contextWrite(ReactiveSecurityContextHolder.withAuthentication(authenticationToken));
         }
-        catch (Exception e){
-            throw new RuntimeException(e);
-        }
-        return chain.filter(exchange);
-
+           catch (Exception e){
+                throw new RuntimeException(e);
+            }
     }
 
 }

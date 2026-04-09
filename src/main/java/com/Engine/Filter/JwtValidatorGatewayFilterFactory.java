@@ -33,11 +33,6 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
         super(Config.class);
     }
 
-    @Override
-    public int getOrder() {
-        return -5;
-    }
-
     // Maps directly to the JSON provided by the developer in the webapp
     @Data
     public static class Config {
@@ -58,30 +53,11 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
         JWKSource<SecurityContext> cachedKeySource = getOrCreateKeySource(config.getJwksUrl());
         return (exchange, chain) -> {
             String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
-
             String token = authHeader.substring(7);
-
-//            try {
-//                SignedJWT signedJWT = SignedJWT.parse(token);
-//
-//                validateToken(signedJWT, config,cachedKeySource);
-//                String clientId = extractClientId(signedJWT.getJWTClaimsSet(), config);
-//                exchange.getRequest().mutate()
-//                        .header("X-Engine-Verified-Client", clientId)
-//                        .build();
-//
-//                return chain.filter(exchange);
-//
-//            } catch (Exception e) {
-//                log.warn("JWT Validation failed for path [{}]: {}", exchange.getRequest().getPath(), e.getMessage());
-//                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-//                return exchange.getResponse().setComplete();
-//            }
             return Mono.fromCallable(()->{
                 JWKSource<SecurityContext> keySource = getOrCreateKeySource(config.jwksUrl);
                 SignedJWT signedJWT = SignedJWT.parse(token);
@@ -179,5 +155,10 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
             throw new SecurityException("Token rejected: Missing the explicitly required claim '" + expectedClaimName + "'.");
         }
         return clientId;
+    }
+
+    @Override
+    public int getOrder() {
+        return -5;
     }
 }

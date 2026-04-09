@@ -39,7 +39,7 @@ private String frontendUrl;
             return chain.filter(exchange);
         }
         String path=exchange.getRequest().getPath().toString();
-        if(path.startsWith("/admin.clients/register-new")){
+        if(path.startsWith("/admin/clients/register-new")){
             return chain.filter(exchange);
         }
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
@@ -53,21 +53,21 @@ private String frontendUrl;
             ObjectMapper mapper = new ObjectMapper();
             String header = new String(Base64.getUrlDecoder().decode(chunks[0].getBytes(StandardCharsets.UTF_8)));
             JsonNode node = mapper.readTree(header);
-            RSAPublicKey publicKey = null;
-            publicKey = (RSAPublicKey) provider.getPublicKey(node.get("kid").asText());
+            RSAPublicKey publicKey = (RSAPublicKey) provider.getPublicKey(node.get("kid").asText());
             Algorithm algorithm = Algorithm.RSA256(publicKey, null);
-            JWTVerifier verifier = JWT.require(Algorithm.RSA256((RSAKeyProvider) provider.getPublicKey(node.get("kid").asText())))
+            JWTVerifier verifier = JWT.require(algorithm)
                     .withIssuer("https://authifyer-backend.onrender.com")
                     .build();
             DecodedJWT decodedJWT = verifier.verify(token);
-            String sub = String.valueOf(decodedJWT.getClaim("sub"));
-            String email = String.valueOf(decodedJWT.getClaim("email"));
+            String sub = decodedJWT.getClaim("sub").asString();
+            String email =decodedJWT.getClaim("email").asString();
             Principal principal = new Principal(sub, email);
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
             return chain.filter(exchange).contextWrite(ReactiveSecurityContextHolder.withAuthentication(authenticationToken));
         }
            catch (Exception e){
-                throw new RuntimeException(e);
+               exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+               return exchange.getResponse().setComplete();
             }
     }
 

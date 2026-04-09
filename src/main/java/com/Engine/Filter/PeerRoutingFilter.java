@@ -20,19 +20,13 @@ public class PeerRoutingFilter implements GlobalFilter, Ordered {
         this.clusterNodeProvider = clusterNodeProvider;
         this.hashRouter = hashRouter;
     }
-//
-//    @PostConstruct
-//    public void init(){
-//        hashRouter.updateCluster(clusterNodeRepository.findActiveNodes().map(p->p.));
-//    }
-
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (exchange.getRequest().getHeaders().containsKey("X-Engine-Peer-Routed")){
             return chain.filter(exchange);
         }
-        String clientId = exchange.getRequest().getHeaders().getFirst("X-Client-Verified-Id");
+        String clientId = exchange.getRequest().getHeaders().getFirst("X-Engine-Verified-Client");
         if(clientId==null||clientId.isBlank()){
             return chain.filter(exchange);
         }
@@ -54,9 +48,8 @@ public class PeerRoutingFilter implements GlobalFilter, Ordered {
         return chain.filter(mutated);
     }
 
-
     @Override
     public int getOrder() {
-        return -20;
+        return -4;
     }
 }

@@ -55,7 +55,6 @@ implements ApplicationListener<RefreshRoutesEvent> , Ordered
         return (exchange,chain)->{
             Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
             String routeId = route==null?"unknown-route": route.getId();
-
             ManualCircuitBreaker cb = circuitBreakers.computeIfAbsent(routeId,
                     id->new ManualCircuitBreaker(config.getFailureRateThreshold(),config.getRecoveryTimeoutSeconds(),config.getWindowSize()));
             if(!cb.isAllowed()){

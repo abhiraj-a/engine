@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
 import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -26,43 +28,43 @@ public class AuthifyerKeyProvider {
     private long lastFetchTime=0;
 
 
-    public PublicKey getPublicKey(String kid) throws MalformedURLException, JsonProcessingException {
+    public Mono<PublicKey> getPublicKey(String kid) throws MalformedURLException, JsonProcessingException {
         if(cache.containsKey(kid) &&System.currentTimeMillis() - lastFetchTime < ttl){
-            return cache.get(kid);
+            return Mono.just(cache.get(kid));
         }
-        getKey();
-        return cache.get(kid);
+        return getKey().map(publickey->cache.get(kid));
     }
-    private void getKey() throws MalformedURLException, JsonProcessingException {
+    private Mono<PublicKey> getKey() throws MalformedURLException, JsonProcessingException {
 
         WebClient client = WebClient.builder()
                 .baseUrl("https://authifyer-backend.onrender.com")
                 .build();
 
-      String jwks = client.get()
+      return client.get()
                .uri(URI.create("/authifyer/.well-known/jwks.json"))
                 .retrieve()
                 .bodyToMono(String.class)
-                .block();
-        ObjectMapper mapper =new ObjectMapper();
-        JsonNode node = mapper.readTree(jwks);
-        JsonNode keys= node.get("keys");
-        if(keys!=null){
-            for (var key : keys){
-                String kid  = key.get("kid").asText();
-                String n = key.get("n").asText();
-                String e = key.get("e").asText();
-                try {
-                    PublicKey publicKey = createPublicKey(n,e);
-                    cache.put(kid,publicKey);
-                } catch (InvalidKeySpecException ex) {
-                    throw new RuntimeException(ex);
-                } catch (NoSuchAlgorithmException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
-        }
-        lastFetchTime= System.currentTimeMillis();
+              .flatMap(Jwks -> {
+                  try {
+                      ObjectMapper mapper = new ObjectMapper();
+                      JsonNode node = mapper.readTree(Jwks);
+                      JsonNode keys = node.get("keys");
+                      if (keys != null) {
+                          for (var key : keys) {
+                              String kid = key.get("kid").asText();
+                              String n = key.get("n").asText();
+                              String e = key.get("e").asText();
+                              PublicKey publicKey = createPublicKey(n, e);
+                              cache.put(kid, publicKey);
+                          }
+                      }
+                      lastFetchTime = System.currentTimeMillis();
+                      return Mono.empty();
+                  } catch (Exception ex) {
+                      return Mono.error(ex);
+                  }
+              });
+
     }
 
     private PublicKey createPublicKey(String n, String e) throws InvalidKeySpecException, NoSuchAlgorithmException {

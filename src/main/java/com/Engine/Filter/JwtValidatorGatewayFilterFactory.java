@@ -15,12 +15,14 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,7 +30,19 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtValidatorGatewayFilterFactory.Config> implements Ordered {
 
-    private Map<String,JWKSource<SecurityContext>> jwkSourceMapCache =new ConcurrentHashMap<>();
+    private static class cachedJwk{
+        final JWKSource<SecurityContext> jwkSource;
+        volatile Instant lasrAccessed;
+
+        private cachedJwk(JWKSource<SecurityContext> jwkSource) {
+            this.jwkSource = jwkSource;
+            this.lasrAccessed=Instant.now();
+        }
+    }
+
+ //   private Map<String,JWKSource<SecurityContext>> jwkSourceMapCache =new ConcurrentHashMap<>();
+    private final Map<String, cachedJwk> jwkSourceMapCache = new ConcurrentHashMap<>();
+    private static final int MAX_JWK_CACHE_SIZE = 500;
     public JwtValidatorGatewayFilterFactory() {
         super(Config.class);
     }
@@ -81,36 +95,33 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
     }
 
     private JWKSource<SecurityContext> getOrCreateKeySource(String jwksUrl)  {
+        cachedJwk cached = jwkSourceMapCache.get(jwksUrl);
+        if (cached != null) {
+            cached.lasrAccessed = Instant.now();
+            return cached.jwkSource;
+        }
+        if(jwkSourceMapCache.size() >= MAX_JWK_CACHE_SIZE) {
+            log.warn("JWK cache is full. Clearing oldest entries manually.");
+            cleanupStaleJwks(); // Force a cleanup if we hit the limit
+        }
+        JWKSource<SecurityContext> jwkSource;
+        try {
+            jwkSource = JWKSourceBuilder
+                    .create(URI.create(jwksUrl).toURL())
+                    .retrying(true)
+                    .build();
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Invalid JWKS URL format", e);
+        }
 
-//      if(jwkSourceMapCache.containsKey(jwksUrl)){
-//          return jwkSourceMapCache.get(jwksUrl);
-//      }
-      jwkSourceMapCache.computeIfAbsent(jwksUrl , value->{
-          JWKSource<SecurityContext> jwkSource = null;
-          try {
-              jwkSource = JWKSourceBuilder
-                      .create(URI.create(jwksUrl).toURL())
-                      .retrying(true)
-                      .cache(15 * 60 * 1000, 5 * 60 * 1000)
-                      .rateLimited(10 * 1000)
-                      .build();
-          } catch (MalformedURLException e) {
-              throw new RuntimeException(e);
-          }
-          jwkSourceMapCache.put(jwksUrl,jwkSource);
-          return jwkSource;
-      });
-//        JWKSource<SecurityContext> jwkSource = null;
-//        try {
-//            jwkSource = JWKSourceBuilder
-//                    .create(URI.create(jwksUrl).toURL())
-//                    .retrying(true)
-//                    .build();
-//        } catch (MalformedURLException e) {
-//            throw new RuntimeException(e);
-//        }
-//        jwkSourceMapCache.put(jwksUrl,jwkSource);
-      return jwkSourceMapCache.get(jwksUrl);
+        jwkSourceMapCache.put(jwksUrl, new cachedJwk(jwkSource));
+        return jwkSource;
+    }
+
+    @Scheduled(fixedRate = 3600000)
+    private void cleanupStaleJwks() {
+        Instant cutoff = Instant.now().minusSeconds(7200);
+        jwkSourceMapCache.entrySet().removeIf(e->e.getValue().lasrAccessed.isBefore(cutoff));
     }
 
     private void validateToken(SignedJWT signedJWT, Config config,JWKSource<SecurityContext> keySource) throws Exception {

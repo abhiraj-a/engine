@@ -51,4 +51,5 @@ public class DatabaseRouteLocator implements RouteDefinitionLocator {
         }
         return definition;
     }
+
 }

@@ -34,11 +34,6 @@ implements ApplicationListener<RefreshRoutesEvent> , Ordered
         circuitBreakers.clear();
     }
 
-    @Override
-    public int getOrder() {
-        return -2;
-    }
-
     @Data
     public static class Config{
         private int windowSize = 100;
@@ -81,6 +76,11 @@ implements ApplicationListener<RefreshRoutesEvent> , Ordered
                             }
                     );
         };
+    }
+
+    @Override
+    public int getOrder() {
+        return -2;
     }
 
 }

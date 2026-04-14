@@ -22,27 +22,27 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        // Skip if already routed
         if(exchange.getAttributes().containsKey(ServerWebExchangeUtils.GATEWAY_ALREADY_ROUTED_ATTR)){
-           return chain.filter(exchange);
+            return chain.filter(exchange);
         }
-        
-        String clientId = exchange.getRequest().getHeaders().getFirst("X-Engine-Verified-Client");
-        return rateLimitService.isAllowed(clientId)
-                .flatMap(allowed->{
-                    if(clientId!=null) {
-                        ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
-                        if ((boolean) allowed) {
-                            metrics.recordSuccess();
-                            return chain.filter(exchange);
-                        }
-                        else {
-                            metrics.recordFailure();
-                            exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-                            return exchange.getResponse().setComplete();
-                        }
 
+        String clientId = exchange.getRequest().getHeaders().getFirst("X-Engine-Verified-Client");
+        if (clientId == null) {
+            return chain.filter(exchange);
+        }
+
+        return rateLimitService.isAllowed(clientId)
+                .flatMap(allowed -> {
+                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+                    if (allowed) {
+                        metrics.recordSuccess();
+                        return chain.filter(exchange);
+                    } else {
+                        metrics.recordFailure();
+                        exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+                        return exchange.getResponse().setComplete();
                     }
-                    return chain.filter(exchange);
                 });
     }
 

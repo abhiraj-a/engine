@@ -5,8 +5,12 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -14,66 +18,31 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Service
 public class InMemoryRateLimitService {
-
-    private Map<String, TokenBucket> bucketCache = new ConcurrentHashMap<>();
     private final ApiClientRepository apiClientRepository;
+    private static final int MAX_CACHE_SIZE=100_00;
 
-    public Mono<?> isAllowed(String clientId) {
-        if (clientId == null) return Mono.just(true);
-        if (bucketCache.containsKey(clientId)) {
-            return Mono.just(bucketCache.get(clientId).
-                    tryConsume());
+    public Mono<Boolean> isAllowed(String clientId) {
+        if (clientId == null || clientId.isBlank()) {
+            return Mono.just(true); // Allow anonymous traffic. Change to Mono.just(false) to block it.
         }
+
+        // The SQL query will ONLY return a row if it successfully consumed a token.
+        // If it returns empty, it means they had 0 tokens (Rate Limited) or an invalid ID.
+        return apiClientRepository.attemptConsumeToken(clientId)
+                .map(client -> true)
+                .defaultIfEmpty(false);
+    }
+
+    public Mono<Double> getLiveTokens(String clientId) {
         return apiClientRepository.findByClientId(clientId)
-                .map(client->{
-                    TokenBucket tokenBucket =new TokenBucket(client.getRateLimitCapacity(), client.getRateLimitRefill(), client.getCurrentTokens(), client.getLastRefillTime());
-                    bucketCache.put(clientId,tokenBucket);
-                    return tokenBucket.tryConsume();
-                }).defaultIfEmpty(true);
-    }
-
-    @PostConstruct
-    public void loadBucketsFromDb(){
-        apiClientRepository.findAll()
-                .doOnNext(client->{
-                    TokenBucket bucket = new TokenBucket(client.getRateLimitCapacity(),client.getRateLimitRefill(), client.getCurrentTokens(), client.getLastRefillTime());
-                    bucketCache.put(client.getClientId(), bucket);
-                })
-                .subscribe(c -> log.info("Loaded rate limit state for: {}", c.getAuthifyerId()));
-    }
-
-    @PreDestroy
-    public void persistBucketsToDb() {
-        log.info("Shutting down: Persisting token counts to DB...");
-        bucketCache.forEach((authifyerId,bucket)->{
-            apiClientRepository.findByClientId(authifyerId)
-                    .flatMap(client -> {
-                        client.setCurrentTokens(bucket.getTokens());
-                        client.setLastRefillTime(bucket.getLastRefillTime());
-                        return apiClientRepository.save(client);
-                    }).subscribe();
-        });
-    }
-
-    public Mono<Double> getLiveTokens(String clientId){
-        TokenBucket bucket = bucketCache.get(clientId);
-        if(bucket!=null){
-            return Mono.just(bucket.peek());
-        }
-        return apiClientRepository.findByClientId(clientId)
-                .map(client->{
-                    TokenBucket tokenBucket = new TokenBucket(
-                            client.getRateLimitCapacity(),
-                            client.getRateLimitRefill(),
-                            client.getCurrentTokens(),
-                            client.getLastRefillTime()
+                .map(client -> {
+                    // Calculate what the tokens *would* be right now for your UI stream
+                    long now = System.currentTimeMillis();
+                    double elapsedTime = (now - client.getLastRefillTime().toEpochMilli()) / 1000.0;
+                    return Math.min(
+                            (double) client.getRateLimitCapacity(),
+                            client.getCurrentTokens() + (client.getRateLimitRefill() * elapsedTime)
                     );
-                    bucketCache.put(clientId,tokenBucket);
-                    return tokenBucket.peek();
                 }).defaultIfEmpty(0.0);
-    }
-
-    public TokenBucket getBucket(String clientId) {
-        return bucketCache.get(clientId);
     }
 }

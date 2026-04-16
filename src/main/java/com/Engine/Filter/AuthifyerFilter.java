@@ -8,6 +8,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,55 +26,24 @@ import java.util.Collections;
 
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class AuthifyerFilter implements WebFilter {
 
 private final AuthifyerKeyProvider provider;
 @Value(("${frontend.url}"))
 private String frontendUrl;
-//
-//    @Override
-//    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-//        String host = exchange.getRequest().getHeaders().getOrigin();
-//        if(host==null||!host.startsWith(frontendUrl)){
-//            return chain.filter(exchange);
-//        }
-//        String path=exchange.getRequest().getPath().toString();
-//        if(path.startsWith("/admin/clients/register-new")){
-//            return chain.filter(exchange);
-//        }
-//        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-//        if(authHeader==null||authHeader.isBlank()){
-//            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-//            return exchange.getResponse().setComplete();
-//        }
-//        try {
-//            String token = authHeader.substring(7);
-//            String[] chunks = token.split("\\.");
-//            ObjectMapper mapper = new ObjectMapper();
-//            String header = new String(Base64.getUrlDecoder().decode(chunks[0].getBytes(StandardCharsets.UTF_8)));
-//            JsonNode node = mapper.readTree(header);
-//            RSAPublicKey publicKey = (RSAPublicKey) provider.getPublicKey(node.get("kid").asText());
-//            Algorithm algorithm = Algorithm.RSA256(publicKey, null);
-//            JWTVerifier verifier = JWT.require(algorithm)
-//                    .withIssuer("https://authifyer-backend.onrender.com")
-//                    .build();
-//            DecodedJWT decodedJWT = verifier.verify(token);
-//            String sub = decodedJWT.getClaim("sub").asString();
-//            String email =decodedJWT.getClaim("email").asString();
-//            Principal principal = new Principal(sub, email);
-//            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
-//            return chain.filter(exchange).contextWrite(ReactiveSecurityContextHolder.withAuthentication(authenticationToken));
-//        }
-//           catch (Exception e){
-//               exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-//               return exchange.getResponse().setComplete();
-//            }
-//    }
+
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String host = exchange.getRequest().getHeaders().getOrigin();
+        log.warn("Filter initiated");
+
+        log.warn(exchange.getRequest().getURI().toString());
+        String host = exchange.getRequest().getHeaders().getHost().getHostName();
+        String s = exchange.getRequest().getHeaders().getHost().getHostString();
+        System.out.println("Host :  " + host +  "  " + s) ;
         if (host == null || !host.startsWith(frontendUrl)) {
+            log.warn("Host is  null");
             return chain.filter(exchange);
         }
 
@@ -84,11 +54,13 @@ private String frontendUrl;
 
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || authHeader.isBlank()) {
+            log.warn("Incoming authHeader :  "+ authHeader);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
         try {
+            log.warn("Try block  initiated");
             String token = authHeader.substring(7);
             String[] chunks = token.split("\\.");
             ObjectMapper mapper = new ObjectMapper();
@@ -99,6 +71,7 @@ private String frontendUrl;
             return provider.getPublicKey(kid)
                     .flatMap(publicKey -> {
                         try {
+                            log.warn("before alo");
                             Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) publicKey, null);
                             JWTVerifier verifier = JWT.require(algorithm)
                                     .withIssuer("https://authifyer-backend.onrender.com")
@@ -112,20 +85,24 @@ private String frontendUrl;
                             UsernamePasswordAuthenticationToken authenticationToken =
                                     new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
 
+                            log.warn("Setting security context :  "  + authenticationToken);
                             return chain.filter(exchange)
                                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authenticationToken));
                         } catch (Exception e) {
                             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                            log.warn(e.getMessage());
                             return exchange.getResponse().setComplete();
                         }
                     })
                     .onErrorResume(e -> {
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        log.warn(e.getMessage());
                         return exchange.getResponse().setComplete();
                     });
 
         } catch (Exception e) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            log.warn(e.getMessage());
             return exchange.getResponse().setComplete();
         }
     }

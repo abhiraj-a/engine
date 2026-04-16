@@ -11,21 +11,36 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 public interface GatewayRouteRepository extends ReactiveCrudRepository<GatewayRoute, UUID> {
-    //  CUSTOM QUERY: Fetch only the routes that are currently active.
-    // Notice it returns a Flux because it will stream multiple rows back asynchronously.
-    @Query("SELECT * FROM gateway_routes WHERE is_active  = true ORDER BY route_order ASC")
+//    //  CUSTOM QUERY: Fetch only the routes that are currently active.
+//    // Notice it returns a Flux because it will stream multiple rows back asynchronously.
+//    @Query("SELECT * FROM gateway_routes WHERE is_active  = true ORDER BY route_order ASC")
+//    Flux<GatewayRoute> findAllActiveRoutes();
+//
+//
+// @Query("SELECT * FROM gateway_routes WHERE is_active  = true AND owner_id = :ownerId ORDER BY route_order ASC")
+//    Flux<GatewayRoute> findAllActiveRoutes(@Param("ownerId") String ownerId);
+//
+//    // CUSTOM QUERY: Find a specific route by its URI.
+//    // Returns a Mono because we only expect 0 or 1 result.
+//    @Query("SELECT * FROM gateway_routes WHERE uri = :uri LIMIT 1")
+//    Mono<GatewayRoute> findByUri(String uri);
+//
+//    @Modifying
+//    @Query("DELETE FROM gateway_routes WHERE route_id = :routeId")
+//    Mono<Object> deleteByRouteId(@Param("routeId") String routeId);
+
+    @Query("SELECT * FROM gateway_routes WHERE is_active = true ORDER BY route_order ASC")
     Flux<GatewayRoute> findAllActiveRoutes();
 
-
- @Query("SELECT * FROM gateway_routes WHERE is_active  = true AND ownerId = :ownerId ORDER BY route_order ASC")
+    // FIX: Change ownerId to owner_id
+    @Query("SELECT * FROM gateway_routes WHERE is_active = true AND owner_id = :ownerId ORDER BY route_order ASC")
     Flux<GatewayRoute> findAllActiveRoutes(@Param("ownerId") String ownerId);
 
-    // CUSTOM QUERY: Find a specific route by its URI.
-    // Returns a Mono because we only expect 0 or 1 result.
     @Query("SELECT * FROM gateway_routes WHERE uri = :uri LIMIT 1")
     Mono<GatewayRoute> findByUri(String uri);
 
     @Modifying
-    @Query("DELETE FROM gateway_routes WHERE route_Id = :routeId")
+// FIX: Change route_Id to route_id
+    @Query("DELETE FROM gateway_routes WHERE route_id = :routeId")
     Mono<Object> deleteByRouteId(@Param("routeId") String routeId);
 }

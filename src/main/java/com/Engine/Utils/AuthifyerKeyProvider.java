@@ -41,7 +41,7 @@ public class AuthifyerKeyProvider {
                 .build();
 
       return client.get()
-               .uri(URI.create("/authifyer/.well-known/jwks.json"))
+               .uri("/authifyer/.well-known/jwks.json")
                 .retrieve()
                 .bodyToMono(String.class)
               .flatMap(Jwks -> {

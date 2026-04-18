@@ -11,6 +11,7 @@ import com.Engine.Service.LiveMetricsTracker;
 import com.Engine.Utils.IdGenerator;
 import com.Engine.Utils.Principal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/clients")
 @RequiredArgsConstructor
+@Slf4j
 public class ApiClientController {
 
     private final InMemoryRateLimitService rateLimitService;
@@ -41,30 +43,28 @@ public class ApiClientController {
                 .rateLimitRefill(5)
                 .isSuspended(false)
                 .build();
-        ApiClientRespone respone = ApiClientRespone.builder()
-                .jwksUrl(apiClient.getJwksUrl()!=null? apiClient.getJwksUrl() : "")
-                .clientId(apiClient.getClientId())
-                .clientName(apiClient.getClientName())
-                .authifyerId(apiClient.getAuthifyerId())
-                .currentTokens(apiClient.getCurrentTokens())
-                .build();
-        return Mono.just(respone);
+//        ApiClientRespone respone = ApiClientRespone.builder()
+//                .jwksUrl(apiClient.getJwksUrl()!=null? apiClient.getJwksUrl() : "")
+//                .clientId(apiClient.getClientId())
+//                .clientName(apiClient.getClientName())
+//                .authifyerId(apiClient.getAuthifyerId())
+//                .currentTokens(apiClient.getCurrentTokens())
+//                .build();
+        return Mono.just(apiClientRepository.save(apiClient))
+                .map(a->ApiClientRespone.builder()
+                        .jwksUrl(apiClient.getJwksUrl()!=null? apiClient.getJwksUrl() : "")
+                        .clientId(apiClient.getClientId())
+                        .clientName(apiClient.getClientName())
+                        .authifyerId(apiClient.getAuthifyerId())
+                        .currentTokens(apiClient.getCurrentTokens())
+                        .build());
     }
 
     @GetMapping("/get-all")
     public Flux<?> getAllClients(@AuthenticationPrincipal Principal principal){
-//        Flux<ApiClient>  apiClientFlux = apiClientRepository.findAllByAuthifyerId(principal.getSub());
-//        List<ApiClientRespone> respones = apiClientFlux.toStream()
-//                .map(a->ApiClientRespone.builder()
-//                        .clientId(a.getClientId())
-//                        .clientName(a.getClientName())
-//                        .currentTokens(a.getCurrentTokens())
-//                        .isSuspended(a.isSuspended())
-//                        .authifyerId(a.getAuthifyerId())
-//                        .build()).toList();
-//        return Flux.just(respones);
-
+        log.warn("Authyfyer if id : " + principal.getSub());
         return apiClientRepository.findAllByAuthifyerId(principal.getSub())
+                .doOnNext(a -> log.warn("Found client: {}", a.getClientId()))
                 .map(a -> ApiClientRespone.builder()
                         .clientId(a.getClientId())
                         .clientName(a.getClientName())
@@ -87,18 +87,36 @@ public class ApiClientController {
 
     @GetMapping("/metrics/stream/{clientId}")
     public Flux<?> getMetrics(@AuthenticationPrincipal Principal principal , @PathVariable String clientId){
+//        return apiClientRepository.findByClientId(clientId)
+//                .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
+//                .flatMapMany(c -> Flux.interval(Duration.ofSeconds(1)))
+//                .flatMap(tick -> {
+//                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+//                    return rateLimitService.getLiveTokens(clientId)
+//                            .map(tokens -> MetricDTO.builder()
+//                                    .liveTokens(tokens)
+//                                    .totalRequests(metrics.getTotRequest())
+//                                    .passedRequests(metrics.getPassedRequest())
+//                                    .blockedRequests(metrics.getBlockedRequest())
+//                                    .build());
+//                });
         return apiClientRepository.findByClientId(clientId)
                 .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
-                .flatMapMany(c -> Flux.interval(Duration.ofSeconds(1)))
-                .flatMap(tick -> {
-                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
-                    return rateLimitService.getLiveTokens(clientId)
-                            .map(tokens -> MetricDTO.builder()
-                                    .liveTokens(tokens)
+                .flatMapMany(client -> Flux.interval(Duration.ofSeconds(1))
+                        .map(tick -> {
+                            double elapsed = (System.currentTimeMillis() - client.getLastRefillTime().toEpochMilli()) / 1000.0;
+                            double liveTokens = Math.min(
+                                    client.getRateLimitCapacity(),
+                                    client.getCurrentTokens() + (client.getRateLimitRefill() * elapsed)
+                            );
+                            ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+                            return MetricDTO.builder()
+                                    .liveTokens(liveTokens)
                                     .totalRequests(metrics.getTotRequest())
                                     .passedRequests(metrics.getPassedRequest())
                                     .blockedRequests(metrics.getBlockedRequest())
-                                    .build());
-                });
+                                    .build();
+                        })
+                );
     }
 }

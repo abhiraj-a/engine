@@ -36,19 +36,18 @@ private String frontendUrl;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        log.warn("Filter initiated");
-
-        log.warn(exchange.getRequest().getURI().toString());
-        String host = exchange.getRequest().getHeaders().getHost().getHostName();
-        String s = exchange.getRequest().getHeaders().getHost().getHostString();
-        System.out.println("Host :  " + host +  "  " + s) ;
-        if (host == null || !host.startsWith(frontendUrl)) {
-            log.warn("Host is  null");
+        // checking origin from where the request is coming
+        String origin = exchange.getRequest().getHeaders().getFirst("Origin");
+        if (origin == null || !origin.equals(frontendUrl)) {
             return chain.filter(exchange);
         }
 
+        log.warn("Dashboard request intercepted: {}", exchange.getRequest().getURI());
+
+
         String path = exchange.getRequest().getPath().toString();
-        if (path.startsWith("/admin/clients/register-new")) {
+        if (path.startsWith("/user/register")) {
+            //do not filter this path
             return chain.filter(exchange);
         }
 
@@ -60,7 +59,7 @@ private String frontendUrl;
         }
 
         try {
-            log.warn("Try block  initiated");
+          //  log.warn("Try block  initiated");
             String token = authHeader.substring(7);
             String[] chunks = token.split("\\.");
             ObjectMapper mapper = new ObjectMapper();
@@ -71,10 +70,12 @@ private String frontendUrl;
             return provider.getPublicKey(kid)
                     .flatMap(publicKey -> {
                         try {
-                            log.warn("before alo");
+
+//                  log.warn("before alo");
                             Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) publicKey, null);
                             JWTVerifier verifier = JWT.require(algorithm)
                                     .withIssuer("https://authifyer-backend.onrender.com")
+                                    .acceptLeeway(5)
                                     .build();
 
                             DecodedJWT decodedJWT = verifier.verify(token);

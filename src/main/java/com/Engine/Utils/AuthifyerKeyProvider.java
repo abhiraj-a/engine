@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import java.math.BigInteger;
 import java.net.MalformedURLException;
@@ -15,15 +16,17 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @Component
 public class AuthifyerKeyProvider {
 
-    Map<String , PublicKey> cache = new HashMap<>();
+    Map<String , PublicKey> cache = new ConcurrentHashMap<>();
     private long ttl = 360000;
     private long lastFetchTime=0;
 
@@ -44,6 +47,7 @@ public class AuthifyerKeyProvider {
                .uri("/authifyer/.well-known/jwks.json")
                 .retrieve()
                 .bodyToMono(String.class)
+              .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
               .flatMap(Jwks -> {
                   try {
                       ObjectMapper mapper = new ObjectMapper();

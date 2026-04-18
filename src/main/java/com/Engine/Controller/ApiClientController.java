@@ -53,16 +53,26 @@ public class ApiClientController {
 
     @GetMapping("/get-all")
     public Flux<?> getAllClients(@AuthenticationPrincipal Principal principal){
-        Flux<ApiClient>  apiClientFlux = apiClientRepository.findAllByAuthifyerId(principal.getSub());
-        List<ApiClientRespone> respones = apiClientFlux.toStream()
-                .map(a->ApiClientRespone.builder()
+//        Flux<ApiClient>  apiClientFlux = apiClientRepository.findAllByAuthifyerId(principal.getSub());
+//        List<ApiClientRespone> respones = apiClientFlux.toStream()
+//                .map(a->ApiClientRespone.builder()
+//                        .clientId(a.getClientId())
+//                        .clientName(a.getClientName())
+//                        .currentTokens(a.getCurrentTokens())
+//                        .isSuspended(a.isSuspended())
+//                        .authifyerId(a.getAuthifyerId())
+//                        .build()).toList();
+//        return Flux.just(respones);
+
+        return apiClientRepository.findAllByAuthifyerId(principal.getSub())
+                .map(a -> ApiClientRespone.builder()
                         .clientId(a.getClientId())
                         .clientName(a.getClientName())
                         .currentTokens(a.getCurrentTokens())
                         .isSuspended(a.isSuspended())
                         .authifyerId(a.getAuthifyerId())
-                        .build()).toList();
-        return Flux.just(respones);
+                        .build());
+
     }
 
     @GetMapping(value = "/tokens/stream/{clientId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

@@ -1,5 +1,8 @@
 package com.Engine.DTO;
 
+import lombok.Getter;
+
+@Getter
 public class GateWayRouteDTO {
     private String routeId;
     private String uri;

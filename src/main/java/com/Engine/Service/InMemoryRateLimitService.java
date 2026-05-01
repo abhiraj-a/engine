@@ -1,25 +1,17 @@
 package com.Engine.Service;
 
 import com.Engine.Repository.ApiClientRepository;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
 @Slf4j
 @Service
 public class InMemoryRateLimitService {
     private final ApiClientRepository apiClientRepository;
-    private static final int MAX_CACHE_SIZE=100_00;
+    private static final int MAX_CACHE_SIZE=10_000;
 
     public Mono<Boolean> isAllowed(String clientId) {
         if (clientId == null || clientId.isBlank()) {

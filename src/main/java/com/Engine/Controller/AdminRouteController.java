@@ -47,12 +47,18 @@ public class AdminRouteController {
     }
 
     @DeleteMapping("/{routeId}")
-    public Mono<?> deleteRoute(@AuthenticationPrincipal Principal principal,@PathVariable String routeId){
+    public Mono<ResponseEntity<Void>> deleteRoute(
+            @AuthenticationPrincipal Principal principal,
+            @PathVariable String routeId) {
+
         return gatewayRouteRepository.deleteByRouteId(routeId)
-                .doOnSuccess(unused -> {
-                    log.info("Route Deleted from DB: {}", routeId);
+                // Replaced doOnSuccess (receives null Void signal, misleading) with
+                // then(Mono.fromRunnable(...)) which is explicit about having no upstream value.
+                .then(Mono.fromRunnable(() -> {
+                    log.info("Route deleted from DB: {}", routeId);
                     eventPublisher.publishEvent(new RefreshRoutesEvent(this));
-                })
+                    log.info("Gateway route cache refreshed after delete");
+                }))
                 .then(Mono.just(ResponseEntity.noContent().<Void>build()));
     }
 }

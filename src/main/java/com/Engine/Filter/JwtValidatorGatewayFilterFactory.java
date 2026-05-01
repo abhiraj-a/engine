@@ -32,11 +32,11 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
     private static class cachedJwk{
         final JWKSource<SecurityContext> jwkSource;
-        volatile Instant lasrAccessed;
+        volatile Instant lastAccessed;
 
         private cachedJwk(JWKSource<SecurityContext> jwkSource) {
             this.jwkSource = jwkSource;
-            this.lasrAccessed=Instant.now();
+            this.lastAccessed=Instant.now();
         }
     }
 
@@ -64,7 +64,7 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
 
     @Override
     public GatewayFilter apply(Config config) {
-        JWKSource<SecurityContext> cachedKeySource = getOrCreateKeySource(config.getJwksUrl());
+//        JWKSource<SecurityContext> cachedKeySource = getOrCreateKeySource(config.getJwksUrl());
         return (exchange, chain) -> {
             String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -97,7 +97,7 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
     private JWKSource<SecurityContext> getOrCreateKeySource(String jwksUrl)  {
         cachedJwk cached = jwkSourceMapCache.get(jwksUrl);
         if (cached != null) {
-            cached.lasrAccessed = Instant.now();
+            cached.lastAccessed = Instant.now();
             return cached.jwkSource;
         }
         if(jwkSourceMapCache.size() >= MAX_JWK_CACHE_SIZE) {
@@ -119,9 +119,9 @@ public class JwtValidatorGatewayFilterFactory extends AbstractGatewayFilterFacto
     }
 
     @Scheduled(fixedRate = 3600000)
-    private void cleanupStaleJwks() {
+    public void cleanupStaleJwks() {
         Instant cutoff = Instant.now().minusSeconds(7200);
-        jwkSourceMapCache.entrySet().removeIf(e->e.getValue().lasrAccessed.isBefore(cutoff));
+        jwkSourceMapCache.entrySet().removeIf(e->e.getValue().lastAccessed.isBefore(cutoff));
     }
 
     private void validateToken(SignedJWT signedJWT, Config config,JWKSource<SecurityContext> keySource) throws Exception {

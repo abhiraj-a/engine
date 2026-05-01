@@ -32,7 +32,7 @@ public class ApiClientController {
     private final ApiClientRepository apiClientRepository;
     private final LiveMetricsTracker metricsTracker;
     @PostMapping("/register-new/service")
-    public Mono<?> registerNew(@AuthenticationPrincipal Principal principal, @RequestBody ApiClientDTO apiClientDTO){
+    public ApiClientRespone registerNew(@AuthenticationPrincipal Principal principal, @RequestBody ApiClientDTO apiClientDTO){
         ApiClient apiClient = ApiClient.builder()
                 .clientName(apiClientDTO.getClientName())
                 .authifyerId(principal.getSub())
@@ -43,21 +43,15 @@ public class ApiClientController {
                 .rateLimitRefill(5)
                 .isSuspended(false)
                 .build();
-//        ApiClientRespone respone = ApiClientRespone.builder()
-//                .jwksUrl(apiClient.getJwksUrl()!=null? apiClient.getJwksUrl() : "")
-//                .clientId(apiClient.getClientId())
-//                .clientName(apiClient.getClientName())
-//                .authifyerId(apiClient.getAuthifyerId())
-//                .currentTokens(apiClient.getCurrentTokens())
-//                .build();
-        return Mono.just(apiClientRepository.save(apiClient))
-                .map(a->ApiClientRespone.builder()
-                        .jwksUrl(apiClient.getJwksUrl()!=null? apiClient.getJwksUrl() : "")
-                        .clientId(apiClient.getClientId())
-                        .clientName(apiClient.getClientName())
-                        .authifyerId(apiClient.getAuthifyerId())
-                        .currentTokens(apiClient.getCurrentTokens())
-                        .build());
+        ApiClientRespone respone = ApiClientRespone.builder()
+                .jwksUrl(apiClient.getJwksUrl()!=null? apiClient.getJwksUrl() : "")
+                .clientId(apiClient.getClientId())
+                .clientName(apiClient.getClientName())
+                .authifyerId(apiClient.getAuthifyerId())
+                .currentTokens(apiClient.getCurrentTokens())
+                .build();
+        apiClientRepository.save(apiClient);
+        return  respone;
     }
 
     @GetMapping("/get-all")

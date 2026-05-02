@@ -25,7 +25,6 @@ public class ManualCircuitBreaker {
     // the increment and the subsequent array write were not coordinated — another thread
     // could interleave between the two. A plain int under the same monitor is correct.
     private int currentIndex = 0;
-
     private volatile Instant lastFailureTime;
     private final double failureThreshold;
     private final long recoveryTimeoutSeconds;

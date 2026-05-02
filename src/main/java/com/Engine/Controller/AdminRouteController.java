@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -24,8 +25,8 @@ public class AdminRouteController {
     private final ApplicationEventPublisher eventPublisher;
 
     @GetMapping
-    public ResponseEntity<?> getAllRoutes(@AuthenticationPrincipal Principal principal){
-        return ResponseEntity.ok(gatewayRouteRepository.findAllActiveRoutes(principal.getSub()));
+    public Flux<GatewayRoute> getAllRoutes(@AuthenticationPrincipal Principal principal) {
+        return gatewayRouteRepository.findAllActiveRoutes(principal.getSub());
     }
 
     @PostMapping

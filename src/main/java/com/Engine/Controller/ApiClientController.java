@@ -12,10 +12,12 @@ import com.Engine.Utils.IdGenerator;
 import com.Engine.Utils.Principal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -68,49 +70,73 @@ public class ApiClientController {
                         .build());
 
     }
+//
+//    @GetMapping(value = "/tokens/stream/{clientId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+//    public Flux<Double> getLiveTokens(@AuthenticationPrincipal Principal principal,
+//                                      @PathVariable String clientId){
+//        return apiClientRepository.findByClientId(clientId)
+//                .filter(a->a.getAuthifyerId().equals(principal.getSub()))
+////              .switchIfEmpty(Mono.error(new SecurityException("Unauthorized access to client metrics")))
+//                .flatMapMany(c->Flux.interval(Duration.ofSeconds(1)))
+//                .flatMap(tick-> rateLimitService.getLiveTokens(clientId));
+//    }
 
-    @GetMapping(value = "/tokens/stream/{clientId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<Double> getLiveTokens(@AuthenticationPrincipal Principal principal,
-                                      @PathVariable String clientId){
+    @GetMapping(value = "/metrics/stream/{clientId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<MetricDTO> getMetrics(
+            @AuthenticationPrincipal Principal principal,
+            @PathVariable String clientId) {
+
         return apiClientRepository.findByClientId(clientId)
-                .filter(a->a.getAuthifyerId().equals(principal.getSub()))
-//              .switchIfEmpty(Mono.error(new SecurityException("Unauthorized access to client metrics")))
-                .flatMapMany(c->Flux.interval(Duration.ofSeconds(1)))
-                .flatMap(tick-> rateLimitService.getLiveTokens(clientId));
+                .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "Client not found or access denied")))
+                .flatMapMany(client -> Flux.interval(Duration.ofSeconds(1))
+                        .flatMap(tick -> rateLimitService.getLiveTokens(clientId)
+                                .map(tokens -> {
+                                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+                                    return MetricDTO.builder()
+                                            .liveTokens(tokens)
+                                            .totalRequests(metrics.getTotRequest())
+                                            .passedRequests(metrics.getPassedRequest())
+                                            .blockedRequests(metrics.getBlockedRequest())
+                                            .build();
+                                })
+                        )
+                );
     }
 
-    @GetMapping("/metrics/stream/{clientId}")
-    public Flux<?> getMetrics(@AuthenticationPrincipal Principal principal , @PathVariable String clientId){
+//    @GetMapping("/metrics/stream/{clientId}")
+//    public Flux<?> getMetrics(@AuthenticationPrincipal Principal principal , @PathVariable String clientId){
+////        return apiClientRepository.findByClientId(clientId)
+////                .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
+////                .flatMapMany(c -> Flux.interval(Duration.ofSeconds(1)))
+////                .flatMap(tick -> {
+////                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+////                    return rateLimitService.getLiveTokens(clientId)
+////                            .map(tokens -> MetricDTO.builder()
+////                                    .liveTokens(tokens)
+////                                    .totalRequests(metrics.getTotRequest())
+////                                    .passedRequests(metrics.getPassedRequest())
+////                                    .blockedRequests(metrics.getBlockedRequest())
+////                                    .build());
+////                });
 //        return apiClientRepository.findByClientId(clientId)
 //                .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
-//                .flatMapMany(c -> Flux.interval(Duration.ofSeconds(1)))
-//                .flatMap(tick -> {
-//                    ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
-//                    return rateLimitService.getLiveTokens(clientId)
-//                            .map(tokens -> MetricDTO.builder()
-//                                    .liveTokens(tokens)
+//                .flatMapMany(client -> Flux.interval(Duration.ofSeconds(1))
+//                        .map(tick -> {
+//                            double elapsed = (System.currentTimeMillis() - client.getLastRefillTime().toEpochMilli()) / 1000.0;
+//                            double liveTokens = Math.min(
+//                                    client.getRateLimitCapacity(),
+//                                    client.getCurrentTokens() + (client.getRateLimitRefill() * elapsed)
+//                            );
+//                            ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
+//                            return MetricDTO.builder()
+//                                    .liveTokens(liveTokens)
 //                                    .totalRequests(metrics.getTotRequest())
 //                                    .passedRequests(metrics.getPassedRequest())
 //                                    .blockedRequests(metrics.getBlockedRequest())
-//                                    .build());
-//                });
-        return apiClientRepository.findByClientId(clientId)
-                .filter(a -> a.getAuthifyerId().equals(principal.getSub()))
-                .flatMapMany(client -> Flux.interval(Duration.ofSeconds(1))
-                        .map(tick -> {
-                            double elapsed = (System.currentTimeMillis() - client.getLastRefillTime().toEpochMilli()) / 1000.0;
-                            double liveTokens = Math.min(
-                                    client.getRateLimitCapacity(),
-                                    client.getCurrentTokens() + (client.getRateLimitRefill() * elapsed)
-                            );
-                            ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
-                            return MetricDTO.builder()
-                                    .liveTokens(liveTokens)
-                                    .totalRequests(metrics.getTotRequest())
-                                    .passedRequests(metrics.getPassedRequest())
-                                    .blockedRequests(metrics.getBlockedRequest())
-                                    .build();
-                        })
-                );
-    }
+//                                    .build();
+//                        })
+//                );
+//    }
 }

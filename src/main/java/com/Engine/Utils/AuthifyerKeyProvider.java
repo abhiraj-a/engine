@@ -1,3 +1,4 @@
+/*
 package com.Engine.Utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -105,66 +106,6 @@ public class AuthifyerKeyProvider {
         return KeyFactory.getInstance("RSA")
                 .generatePublic(new RSAPublicKeySpec(modulus, exponent));
     }
-
-
-//    Map<String , PublicKey> cache = new ConcurrentHashMap<>();
-//    private long ttl = 3600000;
-//    private long lastFetchTime=0;
-//
-//
-//    public Mono<PublicKey> getPublicKey(String kid) throws MalformedURLException, JsonProcessingException {
-//        log.warn("getting public key from remote server");
-//        if(cache.containsKey(kid) &&System.currentTimeMillis() - lastFetchTime < ttl){
-//            log.warn("Key found in cache");
-//            return Mono.just(cache.get(kid));
-//        }
-//        return getKey().map(publickey->cache.get(kid));
-//    }
-//    private Mono<PublicKey> getKey() throws MalformedURLException, JsonProcessingException {
-//
-//        WebClient client = WebClient.builder()
-//                .baseUrl("https://authifyer-backend.onrender.com")
-//                .build();
-//
-//      return client.get()
-//               .uri("/authifyer/.well-known/jwks.json")
-//                .retrieve()
-//                .bodyToMono(String.class)
-//              .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
-//              .flatMap(Jwks -> {
-//                  try {
-//                      ObjectMapper mapper = new ObjectMapper();
-//                      JsonNode node = mapper.readTree(Jwks);
-//                      JsonNode keys = node.get("keys");
-//                      if (keys != null) {
-//                          for (var key : keys) {
-//                              String kid = key.get("kid").asText();
-//                              String n = key.get("n").asText();
-//                              String e = key.get("e").asText();
-//                              PublicKey publicKey = createPublicKey(n, e);
-//                              cache.put(kid, publicKey);
-//                          }
-//                      }
-//                      lastFetchTime = System.currentTimeMillis();
-//                      return Mono.empty();
-//                  } catch (Exception ex) {
-//                      return Mono.error(ex);
-//                  }
-//              });
-//
-//    }
-//
-//    private PublicKey createPublicKey(String n, String e) throws InvalidKeySpecException, NoSuchAlgorithmException {
-//
-//        byte[] mod = Base64.getUrlDecoder().decode(n);
-//        byte[] ex = Base64.getUrlDecoder().decode(e);
-//
-//        BigInteger modulus = new BigInteger(1, mod);
-//        BigInteger publicExponent = new BigInteger(1, ex);
-//
-//        RSAPublicKeySpec spec = new RSAPublicKeySpec(modulus, publicExponent);
-//        KeyFactory factory = KeyFactory.getInstance("RSA");
-//        return factory.generatePublic(spec);
-//    }
-
 }
+*/
+

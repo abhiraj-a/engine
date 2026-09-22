@@ -17,7 +17,6 @@ public class ApiClient {
     private UUID id;
     private String clientName;
     private String clientId;
-    private String authifyerId;
     @Nullable
     private String jwksUrl;
     private Integer rateLimitCapacity;

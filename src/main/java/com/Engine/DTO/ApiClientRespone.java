@@ -10,7 +10,6 @@ public class ApiClientRespone {
 
     private String clientName;
     private String clientId;
-    private String authifyerId;
     @Nullable
     private String jwksUrl;
     private boolean isSuspended;

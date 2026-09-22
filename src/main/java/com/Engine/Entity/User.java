@@ -14,6 +14,5 @@ import java.util.UUID;
 public class User {
     @Id
     private UUID id;
-    private String authifyerId;
     private @Nullable  String email;
 }

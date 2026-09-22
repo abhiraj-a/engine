@@ -35,7 +35,6 @@ public class ApiClientController {
     public Mono<ApiClientRespone> registerNew(@RequestBody ApiClientDTO apiClientDTO) {
         ApiClient apiClient = ApiClient.builder()
                 .clientName(apiClientDTO.getClientName())
-                .authifyerId("default")
                 .jwksUrl((apiClientDTO.getJwksUrl() != null && !apiClientDTO.getJwksUrl().isBlank()) ? apiClientDTO.getJwksUrl() : null)
                 .currentTokens(100)
                 .clientId(IdGenerator.generateClientId())
@@ -50,7 +49,6 @@ public class ApiClientController {
                         .jwksUrl(saved.getJwksUrl() != null ? saved.getJwksUrl() : "")
                         .clientId(saved.getClientId())
                         .clientName(saved.getClientName())
-                        .authifyerId(saved.getAuthifyerId())
                         .currentTokens(saved.getCurrentTokens())
                         .build());
     }
@@ -63,7 +61,6 @@ public class ApiClientController {
                         .clientName(a.getClientName())
                         .currentTokens(a.getCurrentTokens())
                         .isSuspended(a.isSuspended())
-                        .authifyerId(a.getAuthifyerId())
                         .build());
     }
 

@@ -11,7 +11,6 @@ import java.util.UUID;
 @Data
 @Builder
 public class GatewayRoute {
-
     @Id
     private UUID id;
     private String routeId;
@@ -21,4 +20,5 @@ public class GatewayRoute {
     private int routeOrder;
     private boolean isActive=true;
     private String ownerId;
+
 }

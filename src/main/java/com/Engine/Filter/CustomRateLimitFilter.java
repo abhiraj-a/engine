@@ -27,7 +27,7 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        String clientId = exchange.getRequest().getHeaders().getFirst("X-Engine-Verified-Client");
+        String clientId = exchange.getRequest().getHeaders().getFirst("X-Client-Id");
         if (clientId == null) {
             return chain.filter(exchange);
         }

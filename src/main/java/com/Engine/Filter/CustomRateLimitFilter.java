@@ -32,15 +32,19 @@ public class CustomRateLimitFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        return rateLimitService.isAllowed(clientId)
-                .flatMap(allowed -> {
+        return rateLimitService.attemptConsume(clientId)
+                .flatMap(result -> {
                     ClientMetrics metrics = metricsTracker.getClientMetrics(clientId);
-                    if (allowed) {
+                    if (result.allowed()) {
                         metrics.recordSuccess();
+                        if (result.remainingTokens() >= 0) {
+                            exchange.getResponse().getHeaders().set("X-RateLimit-Remaining", String.valueOf((long) result.remainingTokens()));
+                        }
                         return chain.filter(exchange);
                     } else {
                         metrics.recordFailure();
                         exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+                        exchange.getResponse().getHeaders().set("X-RateLimit-Remaining", "0");
                         return exchange.getResponse().setComplete();
                     }
                 });

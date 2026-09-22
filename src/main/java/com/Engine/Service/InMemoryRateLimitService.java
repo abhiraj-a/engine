@@ -13,16 +13,29 @@ public class InMemoryRateLimitService {
     private final ApiClientRepository apiClientRepository;
     private static final int MAX_CACHE_SIZE=10_000;
 
-    public Mono<Boolean> isAllowed(String clientId) {
+    public record RateLimitResult(boolean allowed, double remainingTokens) {}
+
+    public Mono<RateLimitResult> attemptConsume(String clientId) {
         if (clientId == null || clientId.isBlank()) {
-            return Mono.just(true); // Allow anonymous traffic. Change to Mono.just(false) to block it.
+            return Mono.just(new RateLimitResult(true, -1));
         }
 
-        // The SQL query will ONLY return a row if it successfully consumed a token.
-        // If it returns empty, it means they had 0 tokens (Rate Limited) or an invalid ID.
         return apiClientRepository.attemptConsumeToken(clientId)
-                .map(client -> true)
-                .defaultIfEmpty(false);
+                .map(client -> {
+                    log.info("[RateLimiter] Client [{}] allowed. Remaining tokens: {}", 
+                            clientId, String.format("%.2f", client.getCurrentTokens()));
+                    return new RateLimitResult(true, client.getCurrentTokens());
+                })
+                .defaultIfEmpty(new RateLimitResult(false, 0.0))
+                .doOnNext(res -> {
+                    if (!res.allowed()) {
+                        log.warn("[RateLimiter] Client [{}] BLOCKED (0 tokens remaining or client suspended).", clientId);
+                    }
+                });
+    }
+
+    public Mono<Boolean> isAllowed(String clientId) {
+        return attemptConsume(clientId).map(RateLimitResult::allowed);
     }
 
     public Mono<Double> getLiveTokens(String clientId) {

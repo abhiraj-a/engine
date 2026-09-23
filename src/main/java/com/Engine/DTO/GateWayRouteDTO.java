@@ -9,6 +9,7 @@ public class GateWayRouteDTO {
     private String predicatesJson;
     private String filtersJson;
     private int routeOrder;
+    private String lbStrategy;
 
     public String getFiltersJson() {
         return filtersJson;

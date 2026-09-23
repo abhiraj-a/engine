@@ -40,3 +40,20 @@ CREATE INDEX IF NOT EXISTS idx_gateway_routes_route_id ON gateway_routes (route_
 
 -- Index on owner_id for filtering routes by owner
 CREATE INDEX IF NOT EXISTS idx_gateway_routes_owner_id ON gateway_routes (owner_id);
+
+-- Load balancing strategy column on gateway_routes
+-- Valid values: ROUND_ROBIN, LEAST_CONNECTIONS, WEIGHTED_ROUND_ROBIN, RANDOM
+ALTER TABLE gateway_routes ADD COLUMN IF NOT EXISTS lb_strategy VARCHAR(32) NOT NULL DEFAULT 'ROUND_ROBIN';
+
+-- backend_instances table: multiple upstream servers per route
+CREATE TABLE IF NOT EXISTS backend_instances (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    route_id        VARCHAR(255) NOT NULL,
+    url             VARCHAR(512) NOT NULL,
+    weight          INTEGER NOT NULL DEFAULT 1,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(route_id, url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_backend_instances_route_id ON backend_instances (route_id);

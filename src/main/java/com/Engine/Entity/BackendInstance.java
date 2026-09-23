@@ -5,22 +5,20 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.time.Instant;
 import java.util.UUID;
 
-@Table("gateway_routes")
+@Table("backend_instances")
 @Data
 @Builder
-public class GatewayRoute {
+public class BackendInstance {
     @Id
     private UUID id;
     private String routeId;
-    private String uri;
-    private String predicatesJson;
-    private String filtersJson;
-    private int routeOrder;
-    private boolean isActive=true;
-    private String ownerId;
+    private String url;
     @Builder.Default
-    private String lbStrategy = "ROUND_ROBIN";
-
+    private int weight = 1;
+    @Builder.Default
+    private boolean isActive = true;
+    private Instant createdAt;
 }

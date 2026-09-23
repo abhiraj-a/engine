@@ -56,23 +56,42 @@ public class LoadBalancerService {
         Strategy strategy = parseStrategy(route.getLbStrategy());
 
         return backendInstanceRepository.findByRouteIdAndIsActiveTrue(routeId)
-                .filter(instance -> {
-                    InstanceHealth health = getHealth(instance.getId().toString());
-                    return health.isRoutable();
-                })
                 .collectList()
-                .flatMap(instances -> {
-                    if (instances.isEmpty()) {
+                .flatMap(allInstances -> {
+                    if (allInstances.isEmpty()) {
+                        log.info("[LOAD-BALANCER] [Route: {}] No dynamic backend instances configured. Forwarding to static route URI: {}",
+                                routeId, route.getUri());
                         return Mono.empty();
                     }
+
+                    List<BackendInstance> routableInstances = allInstances.stream()
+                            .filter(instance -> getHealth(instance.getId().toString()).isRoutable())
+                            .toList();
+
+                    log.info("[LOAD-BALANCER] [Route: {}] Evaluating {} backend(s) with Strategy: {} (Healthy: {})",
+                            routeId, allInstances.size(), strategy, routableInstances.size());
+
+                    for (BackendInstance inst : allInstances) {
+                        InstanceHealth h = getHealth(inst.getId().toString());
+                        log.info("[LOAD-BALANCER] [Route: {}] Candidate: {} | Weight: {} | In-Flight: {} | State: {} | Failures: {}",
+                                routeId, inst.getUrl(), inst.getWeight(), h.getActiveConnections(), h.getState(), h.getConsecutiveFailures());
+                    }
+
+                    if (routableInstances.isEmpty()) {
+                        log.warn("[LOAD-BALANCER] [Route: {}] WARNING: All {} registered backend(s) are UNHEALTHY! Falling back to route default URI: {}",
+                                routeId, allInstances.size(), route.getUri());
+                        return Mono.empty();
+                    }
+
                     BackendInstance selected = switch (strategy) {
-                        case ROUND_ROBIN -> selectRoundRobin(routeId, instances);
-                        case LEAST_CONNECTIONS -> selectLeastConnections(instances);
-                        case WEIGHTED_ROUND_ROBIN -> selectWeightedRoundRobin(routeId, instances);
-                        case RANDOM -> selectRandom(instances);
+                        case ROUND_ROBIN -> selectRoundRobin(routeId, routableInstances);
+                        case LEAST_CONNECTIONS -> selectLeastConnections(routableInstances);
+                        case WEIGHTED_ROUND_ROBIN -> selectWeightedRoundRobin(routeId, routableInstances);
+                        case RANDOM -> selectRandom(routableInstances);
                     };
-                    log.debug("[LoadBalancer] Route [{}] strategy={} → selected {}",
-                            routeId, strategy, selected.getUrl());
+
+                    log.info("[LOAD-BALANCER] [Route: {}] Selected target instance: {} (Strategy: {})",
+                            routeId, selected.getUrl(), strategy);
                     return Mono.just(selected);
                 });
     }
@@ -136,7 +155,7 @@ public class LoadBalancerService {
         InstanceHealth health = getHealth(instanceId);
         health.decrementConnections();
         health.recordFailure();
-        log.warn("[LoadBalancer] Instance [{}] failure recorded. Consecutive failures: {}, State: {}",
+        log.warn("[LOAD-BALANCER] Instance [{}] failure recorded. Consecutive failures: {}, State: {}",
                 instanceId, health.getConsecutiveFailures(), health.getState());
     }
 
@@ -158,7 +177,7 @@ public class LoadBalancerService {
         try {
             return Strategy.valueOf(value.toUpperCase());
         } catch (IllegalArgumentException e) {
-            log.warn("[LoadBalancer] Unknown strategy '{}', falling back to ROUND_ROBIN", value);
+            log.warn("[LOAD-BALANCER] Unknown strategy '{}', falling back to ROUND_ROBIN", value);
             return Strategy.ROUND_ROBIN;
         }
     }

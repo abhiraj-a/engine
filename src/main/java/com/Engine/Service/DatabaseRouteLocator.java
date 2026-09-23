@@ -46,6 +46,8 @@ public class DatabaseRouteLocator implements RouteDefinitionLocator {
                 });
                 definition.setFilters(filters);
             }
+            log.info("[ROUTE-LOCATOR] Dynamic route loaded from database: [{}] | Default URI: {} | LB Strategy: {}",
+                    gatewayRoute.getRouteId(), gatewayRoute.getUri(), gatewayRoute.getLbStrategy());
         } catch (Exception e) {
             log.warn("CRITICAL: Failed to parse routing JSON for Route ID: {}", gatewayRoute.getRouteId(), e);
         }

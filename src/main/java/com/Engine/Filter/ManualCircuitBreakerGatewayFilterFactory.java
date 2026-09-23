@@ -53,6 +53,7 @@ implements ApplicationListener<RefreshRoutesEvent> , Ordered
             ManualCircuitBreaker cb = circuitBreakers.computeIfAbsent(routeId,
                     id->new ManualCircuitBreaker(config.getFailureRateThreshold(),config.getRecoveryTimeoutSeconds(),config.getWindowSize()));
             if(!cb.isAllowed()){
+                log.warn("[CIRCUIT-BREAKER] [Route: {}] Circuit state is OPEN. Rejecting request fast with HTTP 503 SERVICE_UNAVAILABLE", routeId);
                 exchange.getResponse().setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
                 exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
@@ -60,18 +61,20 @@ implements ApplicationListener<RefreshRoutesEvent> , Ordered
                 DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(fallbackJson.getBytes(StandardCharsets.UTF_8));
                 return exchange.getResponse().writeWith(Mono.just(buffer));
             }
+            log.info("[CIRCUIT-BREAKER] [Route: {}] Circuit state is CLOSED (Healthy). Request permitted.", routeId);
             return chain.filter(exchange)
                     .doOnSuccess(v->{
                         HttpStatusCode status = exchange.getResponse().getStatusCode();
                         if(status!=null&&status.is5xxServerError()){
                             cb.recordFailure();
+                            log.warn("[CIRCUIT-BREAKER] [Route: {}] Upstream 5xx failure recorded: {}", routeId, status.value());
                         }
                         else {
                             cb.recordSuccess();
                         }
                     })
                     .doOnError(throwable -> {
-                                log.warn("Network error to downstream on route {}: {}", routeId, throwable.getMessage());
+                                log.warn("[CIRCUIT-BREAKER] [Route: {}] Network transport error: {}", routeId, throwable.getMessage());
                                 cb.recordFailure();
                             }
                     );

@@ -22,14 +22,17 @@ public class InMemoryRateLimitService {
 
         return apiClientRepository.attemptConsumeToken(clientId)
                 .map(client -> {
-                    log.info("[RateLimiter] Client [{}] allowed. Remaining tokens: {}", 
-                            clientId, String.format("%.2f", client.getCurrentTokens()));
+                    log.info("[RATE-LIMITER] Token bucket updated: Client '{}' (Capacity: {}, Refill: {}/s) | Remaining balance: {}", 
+                            client.getClientName() != null ? client.getClientName() : clientId,
+                            client.getRateLimitCapacity(),
+                            client.getRateLimitRefill(),
+                            String.format("%.2f", client.getCurrentTokens()));
                     return new RateLimitResult(true, client.getCurrentTokens());
                 })
                 .defaultIfEmpty(new RateLimitResult(false, 0.0))
                 .doOnNext(res -> {
                     if (!res.allowed()) {
-                        log.warn("[RateLimiter] Client [{}] BLOCKED (0 tokens remaining or client suspended).", clientId);
+                        log.warn("[RATE-LIMITER] Token deduction failed for Client [{}] (Tokens < 1.0 or client suspended)", clientId);
                     }
                 });
     }
@@ -41,7 +44,6 @@ public class InMemoryRateLimitService {
     public Mono<Double> getLiveTokens(String clientId) {
         return apiClientRepository.findByClientId(clientId)
                 .map(client -> {
-                    // Calculate what the tokens *would* be right now for your UI stream
                     long now = System.currentTimeMillis();
                     double elapsedTime = (now - client.getLastRefillTime().toEpochMilli()) / 1000.0;
                     return Math.min(

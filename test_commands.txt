@@ -1,0 +1,74 @@
+================================================================================
+                       ENGINE API TEST COMMANDS
+================================================================================
+Base URL:   https://engine-smth.onrender.com
+Client ID:  s2VCd9MbW0uoLyU   (frontend-app)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PUBLIC API FORWARDING TESTS
+--------------------------------------------------------------------------------
+
+# [Test 1] JSONPlaceholder - Fetch Post #1
+# Route: /posts/**  -->  Forwarded to https://jsonplaceholder.typicode.com
+curl.exe -i "https://engine-smth.onrender.com/posts/1" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+
+# [Test 2] Dog CEO API - Fetch Random Dog Photo URL
+# Route: /api/breeds/**  -->  Forwarded to https://dog.ceo
+curl.exe -i "https://engine-smth.onrender.com/api/breeds/image/random" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+
+# [Test 3] DummyJSON - Fetch Quote #1
+# Route: /quotes/**  -->  Forwarded to https://dummyjson.com
+curl.exe -i "https://engine-smth.onrender.com/quotes/1" -H "X-Client-Id: s2VCd9MbW0uoLyU" -H "User-Agent: Mozilla/5.0"
+
+# [Test 4] HTTPBin - Echo Request & Headers
+# Route: /test/** (StripPrefix=1)  -->  Forwarded to https://httpbin.org/get
+curl.exe -i "https://engine-smth.onrender.com/test/get" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+
+
+--------------------------------------------------------------------------------
+2. LOAD BALANCING TESTS (ROUND-ROBIN ROTATION)
+--------------------------------------------------------------------------------
+# Route: /api/users/**
+# Backends registered:
+#   1. https://jsonplaceholder.typicode.com
+#   2. https://postman-echo.com
+#   3. https://httpbin.org
+#
+# Run these 3 requests one after another. Notice that the "x-lb-instance"
+# header rotates across all 3 backends:
+
+curl.exe -s -I "https://engine-smth.onrender.com/api/users/1" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+curl.exe -s -I "https://engine-smth.onrender.com/api/users/1" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+curl.exe -s -I "https://engine-smth.onrender.com/api/users/1" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+
+
+--------------------------------------------------------------------------------
+3. ADMIN & MONITORING ENDPOINTS
+--------------------------------------------------------------------------------
+
+# [Admin 1] Check Backend Health & Live Connection Stats for user-service
+curl.exe -s "https://engine-smth.onrender.com/admin/routes/user-service/backends/health"
+
+# [Admin 2] List All Active Routes in the Engine
+curl.exe -s "https://engine-smth.onrender.com/admin/routes"
+
+# [Admin 3] List All Registered Clients and Token Counts
+curl.exe -s "https://engine-smth.onrender.com/admin/clients/get-all"
+
+# [Admin 4] Inspect Backends for a Specific Route (e.g., posts-service)
+curl.exe -s "https://engine-smth.onrender.com/admin/routes/posts-service/backends"
+
+
+--------------------------------------------------------------------------------
+4. RATE LIMITING & CIRCUIT BREAKER BEHAVIOR
+--------------------------------------------------------------------------------
+
+# With Client ID (rate limited, consumes tokens):
+curl.exe -i "https://engine-smth.onrender.com/posts/1" -H "X-Client-Id: s2VCd9MbW0uoLyU"
+# -> Look for header "x-ratelimit-remaining: 99"
+
+# Without Client ID (bypasses rate limit, goes straight to load balancer):
+curl.exe -i "https://engine-smth.onrender.com/posts/1"
+
+================================================================================

@@ -72,17 +72,27 @@ public class LoadBalancerFilter implements GlobalFilter, Ordered {
                     // Add response header so caller can see which backend handled the request
                     exchange.getResponse().getHeaders().set("X-LB-Instance", instance.getUrl());
 
-                    log.info("[LoadBalancer] Route [{}] → {} (instance {})",
-                            routeId, rewrittenUrl, instanceId);
+                    int activeConns = loadBalancerService.getHealth(instanceId).getActiveConnections() + 1;
+                    log.info("[LOAD-BALANCER] [Route: {}] URL rewritten: {} -> {}", routeId, existingUrl, rewrittenUrl);
+                    log.info("[LOAD-BALANCER] [Route: {}] Dispatching to upstream: {} | Active in-flight: {}",
+                            routeId, instance.getUrl(), activeConns);
 
                     loadBalancerService.incrementConnections(instanceId);
 
                     return chain.filter(exchange)
-                            .then(Mono.<Void>fromRunnable(() -> recordOutcome(exchange, instanceId)))
-                            .doOnError(throwable -> loadBalancerService.recordFailure(instanceId));
+                            .then(Mono.<Void>fromRunnable(() -> recordOutcome(exchange, instanceId, instance.getUrl(), routeId)))
+                            .doOnError(throwable -> {
+                                loadBalancerService.recordFailure(instanceId);
+                                log.error("[LOAD-BALANCER] [Route: {}] Network transport error calling [{}]: {}",
+                                        routeId, instance.getUrl(), throwable.getMessage());
+                            });
                 })
                 // No backend instances → leave the original URL untouched
-                .switchIfEmpty(Mono.defer(() -> chain.filter(exchange)));
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.info("[LOAD-BALANCER] [Route: {}] No dynamic backends registered. Forwarding to default URI: {}",
+                            routeId, existingUrl);
+                    return chain.filter(exchange);
+                }));
     }
 
     /**
@@ -110,12 +120,17 @@ public class LoadBalancerFilter implements GlobalFilter, Ordered {
         return URI.create(sb.toString());
     }
 
-    private void recordOutcome(ServerWebExchange exchange, String instanceId) {
+    private void recordOutcome(ServerWebExchange exchange, String instanceId, String backendUrl, String routeId) {
         HttpStatusCode status = exchange.getResponse().getStatusCode();
+        int remainingConns = Math.max(0, loadBalancerService.getHealth(instanceId).getActiveConnections() - 1);
         if (status != null && status.is5xxServerError()) {
             loadBalancerService.recordFailure(instanceId);
+            log.warn("[LOAD-BALANCER] [Route: {}] Upstream [{}] returned 5xx Server Error: {} | Remaining in-flight: {}",
+                    routeId, backendUrl, status.value(), remainingConns);
         } else {
             loadBalancerService.recordSuccess(instanceId);
+            log.info("[LOAD-BALANCER] [Route: {}] Upstream [{}] response complete: {} | Remaining in-flight: {}",
+                    routeId, backendUrl, status != null ? status.value() : 200, remainingConns);
         }
     }
 

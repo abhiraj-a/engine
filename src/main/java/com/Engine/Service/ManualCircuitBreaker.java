@@ -47,7 +47,7 @@ public class ManualCircuitBreaker {
             if (lastFailureTime != null &&
                     Instant.now().isAfter(lastFailureTime.plusSeconds(recoveryTimeoutSeconds))) {
                 if (state.compareAndSet(State.OPEN, State.HALF_OPEN)) {
-                    log.warn("Circuit Breaker entering HALF_OPEN — allowing a single probe request.");
+                    log.warn("Circuit Breaker entering HALF_OPEN - allowing a single probe request.");
                     return true;
                 }
             }
@@ -62,7 +62,7 @@ public class ManualCircuitBreaker {
         updateWindow(true);
         if (state.get() == State.HALF_OPEN) {
             state.set(State.CLOSED);
-            log.info("Circuit CLOSED — service recovered.");
+            log.info("Circuit CLOSED - service recovered.");
         }
     }
 
@@ -71,12 +71,12 @@ public class ManualCircuitBreaker {
         updateWindow(false);
         if (state.get() == State.HALF_OPEN) {
             state.set(State.OPEN);
-            log.warn("Circuit re-OPENED — probe request failed.");
+            log.warn("Circuit re-OPENED - probe request failed.");
             return;
         }
         if (calculateFailureRate() >= failureThreshold &&
                 state.compareAndSet(State.CLOSED, State.OPEN)) {
-            log.error("Circuit Breaker TRIPPED — state is now OPEN.");
+            log.error("Circuit Breaker TRIPPED - state is now OPEN.");
         }
     }
 
